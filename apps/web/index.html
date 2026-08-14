@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Artificial Analyzer — Pareto tiers</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <h1>Language model Pareto tiers</h1>
+        <p class="subtitle">
+          The first four Pareto fronts over Artificial Analysis text-model data. Each front is the
+          set of models nothing else beats on both axes at once; peel it away and the next tier
+          surfaces.
+        </p>
+        <p class="meta" id="meta" role="status">Loading…</p>
+      </header>
+
+      <div class="controls" role="group" aria-label="Chart options">
+        <label class="control">
+          <span>X axis</span>
+          <select id="x-metric"></select>
+        </label>
+        <label class="control">
+          <span>Y axis</span>
+          <select id="y-metric"></select>
+        </label>
+
+        <label class="control control-search">
+          <span>Highlight</span>
+          <input
+            type="search"
+            id="search"
+            placeholder="Model or creator…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+
+        <div class="control">
+          <span>Tiers</span>
+          <details class="picker" id="tier-picker">
+            <summary id="tier-summary">All tiers</summary>
+            <div class="picker-panel">
+              <div class="picker-actions">
+                <button type="button" id="tiers-all">Select all</button>
+                <button type="button" id="tiers-none">Clear</button>
+              </div>
+              <div class="picker-list" id="tier-list"></div>
+            </div>
+          </details>
+        </div>
+
+        <div class="control">
+          <span>Creators</span>
+          <details class="picker" id="creator-picker">
+            <summary id="creator-summary">All creators</summary>
+            <div class="picker-panel">
+              <div class="picker-actions">
+                <button type="button" id="creators-all">Select all</button>
+                <button type="button" id="creators-none">Clear</button>
+              </div>
+              <div class="picker-list" id="creator-list"></div>
+            </div>
+          </details>
+        </div>
+
+        <label class="control control-check">
+          <input type="checkbox" id="log-scale" checked />
+          <span>Logarithmic axes</span>
+        </label>
+
+        <div class="control control-view" role="group" aria-label="View">
+          <button type="button" id="view-chart" class="toggle is-active" aria-pressed="true">
+            Chart
+          </button>
+          <button type="button" id="view-table" class="toggle" aria-pressed="false">Table</button>
+        </div>
+
+        <div class="control control-actions">
+          <button type="button" id="usage">API quota</button>
+          <button type="button" id="refresh" class="refresh">Refresh data</button>
+        </div>
+      </div>
+
+      <p class="quota" id="quota" role="status" hidden></p>
+
+      <section class="card" id="chart-card">
+        <ul class="legend" id="legend"></ul>
+        <div class="chart" id="chart"></div>
+        <div class="tooltip" id="tooltip" hidden></div>
+      </section>
+
+      <section class="card" id="table-card" hidden>
+        <table class="data-table" id="table">
+          <caption>
+            Models on the first four Pareto fronts for the selected axes.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Tier</th>
+              <th scope="col">Model</th>
+              <th scope="col">Creator</th>
+              <th scope="col" class="num">Intelligence</th>
+              <th scope="col" class="num">Price / 1M</th>
+              <th scope="col" class="num">Cost / task</th>
+              <th scope="col" class="num">Speed</th>
+              <th scope="col" class="num">Latency</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </section>
+
+      <footer class="page-footer">
+        <p>
+          Data from the
+          <a href="https://artificialanalysis.ai/data-api/docs" rel="noreferrer noopener"
+            >Artificial Analysis API</a
+          >. <strong>Price per token</strong> is USD per 1M tokens blended 3:1 input to output —
+          a rate, not a bill. <strong>Cost per task</strong> is what Artificial Analysis actually
+          spent per task running the Intelligence Index, so it counts verbosity too; a chatty
+          reasoning model can be cheap per token and expensive per task. Models are only plotted on
+          axes they have measurements for.
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
