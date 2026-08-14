@@ -196,7 +196,8 @@ possible duplicates and possible missed notifications. This trade-off must not b
 
 One complete upstream refresh currently requires four requests. An hourly schedule would consume 96
 of the 100 requests available in a fixed 24-hour window and leave too little retry capacity. The
-initial production interval is therefore 90 minutes, scheduled away from round-hour boundaries.
+initial production interval is therefore every four hours. This uses six complete refreshes (24
+requests) in a 24-hour window and leaves substantial capacity for failures and manual executions.
 
 The collector uses the upstream rate-limit headers to avoid starting a refresh that cannot complete.
 Retries must resume or abandon the current refresh without silently performing a second complete
