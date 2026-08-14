@@ -25,6 +25,28 @@ gcloud auth application-default login
 gcloud config set project ia-models-analyzer
 ```
 
+## Remote state bootstrap
+
+Terraform stores production state in the private
+`gs://ia-models-analyzer-terraform-state/platform/production` backend. The bucket must exist before
+`terraform init`, so it is the one deliberately out-of-band bootstrap resource. Create it once with
+public access prevention, uniform access, seven-day soft deletion, and object versioning:
+
+```bash
+gcloud services enable storage.googleapis.com --project=ia-models-analyzer
+gcloud storage buckets create gs://ia-models-analyzer-terraform-state \
+  --project=ia-models-analyzer \
+  --location=europe-west1 \
+  --uniform-bucket-level-access \
+  --public-access-prevention \
+  --soft-delete-duration=7d
+gcloud storage buckets update gs://ia-models-analyzer-terraform-state --versioning
+```
+
+The production bucket already exists. Object versioning and backend locking protect the state from
+accidental overwrites and concurrent Terraform runs. A fork using another Google Cloud project must
+create its own globally unique state bucket and update the backend block in `versions.tf`.
+
 ## Phase 1: bootstrap infrastructure
 
 Copy the example values into an ignored local file and review the permanent locations carefully.

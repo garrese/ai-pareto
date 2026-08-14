@@ -283,6 +283,11 @@ beta provider because Firebase's Terraform support remains in preview. The Hosti
 not deleted, if it is ever removed from Terraform; individual static releases remain the Firebase
 CLI's responsibility.
 
+Terraform state is kept in a dedicated private Cloud Storage backend with public access prevention,
+uniform bucket-level access, object versioning, seven-day soft deletion, and state locking. The state
+bucket is the sole bootstrap resource created outside the main configuration because a backend must
+exist before Terraform can initialize it.
+
 Terraform creates the Secret Manager containers but never receives secret values. A separate local
 script streams the ignored Artificial Analysis key directly to `gcloud`, preventing credentials from
 entering Terraform plans or state. Collector images are digest-pinned, and the job runs one task with
