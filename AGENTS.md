@@ -130,8 +130,9 @@ Guidelines that still apply:
   a session), and anything the user would need to review before it leaves the local repo.
 - Write commit messages the way the rest of this file is written: what changed and *why*, not a
   changelog of file names. Skip the message body when the summary line already says it all.
-- Branch off `main` first for anything that isn't a small, low-risk change — see the global rule
-  about committing on the default branch.
+- Work directly on `main` by default. The user explicitly confirmed on 2026-08-14 that this is a
+  single-developer repository and does not need feature branches. Create a branch only when the user
+  asks for one or when parallel work would make isolation materially safer.
 
 ## Conventions
 
