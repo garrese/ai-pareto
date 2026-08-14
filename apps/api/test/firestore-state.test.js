@@ -127,6 +127,10 @@ test('Firestore state establishes a baseline and transactionally creates later o
     paretoDocument: pareto('snapshot-1', ['model-a']),
   });
   assert.equal(first.eventCount, 0);
+  assert.deepEqual(
+    firestore.documents.get('pareto-state/price-intelligence').tiers,
+    [{ modelIds: ['model-a'] }],
+  );
   await state.markSnapshotPublished({
     executionId: 'execution-1',
     snapshotId: 'snapshot-1',

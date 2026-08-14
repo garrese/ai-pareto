@@ -12,6 +12,16 @@ const eventFields = (data) => ({
   removedModelIds: data.removedModelIds,
 });
 
+const frontForFirestore = (front) => ({
+  ...front,
+  tiers: front.tiers.map((modelIds) => ({ modelIds })),
+});
+
+const frontFromFirestore = (front) => ({
+  ...front,
+  tiers: (front.tiers ?? []).map(({ modelIds }) => modelIds ?? []),
+});
+
 export class FirestoreCollectorState {
   constructor(firestore) {
     this.firestore = firestore;
@@ -81,7 +91,7 @@ export class FirestoreCollectorState {
       const frontSnapshots = await Promise.all(frontRefs.map((ref) => transaction.get(ref)));
       const previousFronts = frontSnapshots
         .filter((snapshot) => snapshot.exists)
-        .map((snapshot) => snapshot.data());
+        .map((snapshot) => frontFromFirestore(snapshot.data()));
       const previous =
         refresh.previousSnapshotId && previousFronts.length > 0
           ? { snapshotId: refresh.previousSnapshotId, fronts: previousFronts }
@@ -97,7 +107,7 @@ export class FirestoreCollectorState {
 
       paretoDocument.fronts.forEach((front, index) => {
         transaction.set(frontRefs[index], {
-          ...front,
+          ...frontForFirestore(front),
           snapshotId,
           updatedAt: generatedAt,
         });
