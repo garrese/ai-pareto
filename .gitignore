@@ -1,5 +1,5 @@
 # --- AI assistant / agent config (kept local, not shared) ---
-CLAUDE.md
+# CLAUDE.md is tracked on purpose — it's committed, not ignored.
 CLAUDE.local.md
 .claude/
 .cursor/
