@@ -1,0 +1,60 @@
+# --- AI assistant / agent config (kept local, not shared) ---
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.cursor/
+.cursorrules
+.github/copilot-instructions.md
+.codex/
+.gemini/
+GEMINI.md
+AGENTS.md
+.aider*
+.continue/
+.windsurfrules
+
+# --- Secrets & local config ---
+# The API token lives in apps/api/config.properties and must never be committed.
+config.properties
+*.properties
+!*.properties.example
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+
+# --- Local API response cache ---
+.cache/
+
+# --- Node ---
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Tooling / framework caches ---
+.vite/
+.parcel-cache/
+.next/
+.turbo/
+.eslintcache
+
+# --- Editors ---
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
