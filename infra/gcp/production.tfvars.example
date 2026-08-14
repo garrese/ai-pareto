@@ -1,0 +1,12 @@
+project_id         = "ia-models-analyzer"
+region             = "europe-west1"
+firestore_location = "europe-west1"
+
+# Set this locally to enable a billing-account budget. It is not a secret.
+billing_account_id   = null
+monthly_budget_units = 10
+budget_currency      = "EUR"
+
+# Leave null for the first apply. After Cloud Build finishes, set the immutable
+# Artifact Registry URL ending in @sha256:<digest> and apply again.
+collector_image = null

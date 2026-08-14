@@ -1,0 +1,81 @@
+# Google Cloud infrastructure
+
+Terraform configuration for the Artificial Analyzer collector platform. It manages APIs, the public
+snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics, service accounts, IAM, Artifact
+Registry, the Cloud Run Job, its four-hour schedule, and an optional billing budget.
+
+Terraform never receives the Artificial Analysis key, so the value cannot enter plans or state. The
+secret container is managed here; a separate script sends the ignored local value directly to Secret
+Manager through `gcloud` standard input.
+
+## Prerequisites
+
+- Terraform 1.8 or newer.
+- Google Cloud CLI authenticated to the existing `ia-models-analyzer` project.
+- Permission to manage the listed project resources and billing budgets when enabled.
+
+Cloud Shell already provides the Google Cloud CLI and is a convenient place to install or run
+Terraform if neither tool is installed locally.
+
+For local use, authenticate Terraform with Application Default Credentials:
+
+```bash
+gcloud auth application-default login
+gcloud config set project ia-models-analyzer
+```
+
+## Phase 1: bootstrap infrastructure
+
+Copy the example values into an ignored local file and review the permanent locations carefully.
+Firestore's location cannot be changed after creation.
+
+```bash
+cp production.tfvars.example production.auto.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+With `collector_image = null`, the first apply creates the supporting infrastructure but not the
+Cloud Run Job or Scheduler. The public bucket defaults to `<project-id>-public-data`; override it in
+the local values file if that globally unique name is unavailable.
+
+Add the local API key as a Secret Manager version without placing it in Terraform state or command
+history:
+
+```bash
+node scripts/add-aa-secret.mjs ia-models-analyzer
+```
+
+## Build the collector image
+
+From this directory, choose a tag derived from the Git commit and submit `apps/api` as the isolated
+Cloud Build context. The custom builder identity is created by the first Terraform apply.
+
+```bash
+IMAGE="$(terraform output -raw artifact_repository)/collector:$(git rev-parse --short HEAD)"
+gcloud builds submit ../../apps/api \
+  --config=../../apps/api/cloudbuild.yaml \
+  --substitutions="_IMAGE=${IMAGE}" \
+  --service-account="$(terraform output -raw builder_service_account)"
+```
+
+Resolve the pushed tag to its immutable digest:
+
+```bash
+DIGEST="$(gcloud artifacts docker images describe "${IMAGE}" --format='value(image_summary.digest)')"
+echo "${IMAGE}@${DIGEST}"
+```
+
+Put that complete digest URL in the ignored `production.auto.tfvars` as `collector_image`, then run
+`terraform plan` and `terraform apply` again. Terraform creates one-task Cloud Run execution with two
+task retries and Cloud Scheduler invokes it at minute 17 every four hours in UTC.
+
+## Safety notes
+
+- Never add a `google_secret_manager_secret_version` containing credentials to this configuration.
+- The bucket cannot be destroyed by Terraform and Firestore is abandoned rather than deleted.
+- The Cloud Run Job accepts only digest-pinned images.
+- Artifact Registry keeps the five most recent images and removes images older than 30 days.
+- Snapshot lifecycle deletion applies only below `public/snapshots/`; it never deletes `latest.json`.
+- Set `billing_account_id` locally to enable the EUR 10 monthly budget thresholds.

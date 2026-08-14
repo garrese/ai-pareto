@@ -1,0 +1,74 @@
+variable "project_id" {
+  description = "Existing billing-enabled Google Cloud project ID."
+  type        = string
+}
+
+variable "region" {
+  description = "Region for Cloud Run, Artifact Registry, Scheduler, and Storage."
+  type        = string
+  default     = "europe-west1"
+}
+
+variable "firestore_location" {
+  description = "Permanent location of the default Firestore database."
+  type        = string
+  default     = "europe-west1"
+}
+
+variable "public_data_bucket_name" {
+  description = "Globally unique public snapshot bucket name; null derives it from the project ID."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "snapshot_retention_days" {
+  description = "Age after which immutable public snapshots are deleted."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.snapshot_retention_days >= 7
+    error_message = "snapshot_retention_days must be at least 7."
+  }
+}
+
+variable "collector_image" {
+  description = "Collector image by immutable digest; null creates only bootstrap infrastructure."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = (
+      var.collector_image == null ||
+      can(regex("@sha256:[0-9a-f]{64}$", var.collector_image))
+    )
+    error_message = "collector_image must be null or an Artifact Registry image ending in @sha256:<64 hex characters>."
+  }
+}
+
+variable "collector_schedule" {
+  description = "UTC cron schedule for the collector."
+  type        = string
+  default     = "17 */4 * * *"
+}
+
+variable "billing_account_id" {
+  description = "Billing account ID for budget alerts; null skips the budget resource."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "monthly_budget_units" {
+  description = "Whole currency units for the optional monthly budget."
+  type        = number
+  default     = 10
+}
+
+variable "budget_currency" {
+  description = "ISO 4217 currency code for the optional monthly budget."
+  type        = string
+  default     = "EUR"
+}

@@ -265,6 +265,18 @@ It must define the service accounts, least-privilege IAM bindings, storage bucke
 Firestore database, Pub/Sub topics and subscriptions, dead-letter policy, Cloud Run workloads, Cloud
 Scheduler job, and budget alerts.
 
+Terraform under `infra/gcp` is the source of truth for Google Cloud resources. Its first apply creates
+bootstrap infrastructure without requiring a container image; after Cloud Build pushes the collector,
+a second apply receives an Artifact Registry digest and creates the Cloud Run Job and Scheduler. The
+default region and Firestore location are `europe-west1`, immutable snapshots are retained for 30
+days, and the collector runs at minute 17 every four hours in UTC. These values remain configurable,
+but changing the Firestore location after database creation is not supported.
+
+Terraform creates the Secret Manager containers but never receives secret values. A separate local
+script streams the ignored Artificial Analysis key directly to `gcloud`, preventing credentials from
+entering Terraform plans or state. Collector images are digest-pinned, and the job runs one task with
+two Cloud Run retries.
+
 Production deployment requires a billing-enabled Google Cloud project even when usage remains within
 the free tiers. Budget alerts and available service-level spending caps are safety controls, not a
 replacement for quotas and least-privilege configuration.

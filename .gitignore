@@ -39,6 +39,15 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
 
+# --- Terraform local state and environment values ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
 # --- Tooling / framework caches ---
 .vite/
 .parcel-cache/
