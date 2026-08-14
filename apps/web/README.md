@@ -7,14 +7,34 @@ Plain HTML, CSS and ES modules. No build step, no dependencies, no framework.
 
 ## Running
 
-The frontend needs the model data, which [`apps/api`](../api/README.md) provides. Start that server
-and open <http://localhost:8787> — it serves these files directly.
+For local development, the frontend gets model data from [`apps/api`](../api/README.md). Start that
+server and open <http://localhost:8787> — it serves these files directly.
 
-To serve the frontend separately, point it at the API with a query parameter:
+To serve the frontend separately against the development API, use a query parameter:
 
 ```
 http://localhost:3000/?api=http://localhost:8787
 ```
+
+Outside localhost, `config.js` selects the public Cloud Storage data root. The page fetches
+`public/latest.json`, validates it, and then loads the matching immutable model snapshot. You can
+exercise that mode locally without editing configuration:
+
+```
+http://localhost:3000/?data=https://storage.googleapis.com/ia-models-analyzer-public-data
+```
+
+## Testing and hosting
+
+Run the dependency-free data-source tests with `npm test`. `firebase.json` deploys this directory
+as-is; there is no build output or root-level workspace involved:
+
+```bash
+firebase deploy --project ia-models-analyzer --only hosting
+```
+
+If Terraform had to use a non-default public bucket name, update the public `dataRoot` in
+`config.js` before deployment.
 
 ## What it does
 
@@ -44,7 +64,8 @@ wide display instead of topping out at a fixed width. Tick density follows the s
 | `src/pareto.js` | Non-dominated sorting and the staircase geometry. No DOM. |
 | `src/metrics.js` | The four metrics, their direction, scale and formatting. |
 | `src/chart.js` | SVG scales, axes, marks and the nearest-point hover layer. |
-| `src/api.js` | Fetches `/api/models`. |
+| `src/api.js` | Selects local API or public snapshots and validates the snapshot contract. |
+| `config.js` | Public production data-root configuration. |
 | `src/main.js` | State, controls, legend, tooltip and table. |
 
 ## Colours

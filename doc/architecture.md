@@ -56,9 +56,10 @@ flowchart LR
 `apps/web` is deployed to Firebase Hosting. Firebase supplies HTTPS and CDN delivery. The frontend
 contains no credentials and does not invoke Artificial Analysis directly.
 
-At startup, the frontend fetches a small public manifest from Cloud Storage, then loads the immutable
-model snapshot named by that manifest. This prevents a client from combining files from different
-refreshes.
+At startup, the frontend fetches a small public manifest from Cloud Storage, validates its schema and
+snapshot paths, then loads the immutable model snapshot named by that manifest. This prevents a
+client from combining files from different refreshes. Localhost continues to use the development
+API; the hosted page selects the public bucket through its non-secret runtime configuration.
 
 ### Collector
 

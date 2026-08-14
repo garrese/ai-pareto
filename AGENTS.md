@@ -15,7 +15,8 @@ public, so assume that everything committed is world-readable.
 - `apps/api` — Node server plus the production collector job. The local server uses the standard
   library; the collector uses official Firestore, Pub/Sub, and Google authentication clients. It
   holds the token, caches the upstream response locally, and serves `apps/web` during development.
-- `apps/web` — static frontend, plain HTML/CSS/ES modules, no build step, no dependencies.
+- `apps/web` — static frontend, plain HTML/CSS/ES modules, no build step, no dependencies. Localhost
+  reads `apps/api`; hosted builds read the public snapshot contract configured in `config.js`.
 - `apps/x-publisher` — private Cloud Run Pub/Sub push consumer. It uses Firestore delivery leases,
   OAuth 1.0a User Context, and X timeline reconciliation to reduce duplicate-post risk.
 

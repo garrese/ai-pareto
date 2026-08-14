@@ -1,4 +1,4 @@
-import { fetchModels, fetchUsage } from './api.js';
+import { dataSourceMode, fetchModels, fetchUsage } from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
 import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
@@ -471,10 +471,18 @@ function bindControls() {
 // ── data ─────────────────────────────────────────────────────────────────────
 
 function describe(payload) {
+  const source =
+    payload.cache === 'snapshot'
+      ? `published snapshot ${payload.snapshotId.replace(/^snapshot-/, '').slice(0, 8)}`
+      : payload.cache === 'hit'
+        ? 'from cache'
+        : payload.stale
+          ? 'stale cache'
+          : 'freshly fetched';
   const parts = [
     `${payload.count} models`,
     `updated ${new Date(payload.fetchedAt).toLocaleString()}`,
-    payload.cache === 'hit' ? 'from cache' : payload.stale ? 'stale cache' : 'freshly fetched',
+    source,
   ];
   if (payload.warning) parts.push(`refresh failed: ${payload.warning}`);
   return parts.join(' · ');
@@ -533,5 +541,10 @@ async function load({ refresh = false } = {}) {
 fillMetricSelects();
 fillTierList();
 bindControls();
+try {
+  if (dataSourceMode() === 'snapshot') dom.usage.hidden = true;
+} catch {
+  // load() renders configuration errors in the existing status region.
+}
 setView('chart');
 load();

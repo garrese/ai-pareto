@@ -7,20 +7,20 @@ Front 1 (*gold*) is the set of models that nothing else beats on both axes at on
 front 2 (*silver*) surfaces, then *bronze*, then *chocolate*. Everything else is dominated by at
 least four models and is drawn in the background.
 
-> **Status:** early development.
+> **Status:** production deployment infrastructure is implemented but not yet applied.
 
 ## Bring Your Own Token (BYOT)
 
-The project ships with no credentials. You supply your own Artificial Analysis API key in
-`apps/api/config.properties`, which is git-ignored. Get a key from the
+The project ships with no credentials. For local development, supply your own Artificial Analysis
+API key in `apps/api/config.properties`, which is git-ignored. Get a key from the
 [Artificial Analysis Data API](https://artificialanalysis.ai/data-api) page.
 
-The key stays in that file. It is read by the local server, never sent to the browser, and never
-leaves your machine except in the request to Artificial Analysis itself.
+The local key is read by the server and never sent to the browser. Production stores its copy in
+Google Secret Manager and exposes it only to the collector service account.
 
 ## Running it
 
-Requires Node.js 20 or newer. No dependencies to install.
+Requires Node.js 22 or newer.
 
 ```bash
 cp apps/api/config.properties.example apps/api/config.properties
@@ -29,7 +29,9 @@ cp apps/api/config.properties.example apps/api/config.properties
 Put your key in `aa.api.key`, then:
 
 ```bash
-cd apps/api && npm start
+cd apps/api
+npm ci
+npm start
 ```
 
 Open <http://localhost:8787>. The server hosts the API on `/api/*` and serves the frontend from
@@ -56,11 +58,18 @@ This repository hosts multiple independent subprojects, each self-contained unde
 
 ```
 apps/
-  api/    Local Node server — holds the token, caches responses, serves the frontend
-  web/    Static frontend — Pareto computation and charts, no dependencies
+  api/          Local server and scheduled production collector
+  web/          Static frontend and Firebase Hosting configuration
+  x-publisher/  Private Pub/Sub consumer for idempotent X delivery
+infra/
+  gcp/          Terraform for the Google Cloud platform
 ```
 
 Each subproject owns its tooling and README. There is no shared build at the root.
+
+The target system and its failure semantics are documented in
+[`doc/architecture.md`](doc/architecture.md). Deployment commands and the two-phase Terraform flow
+live in [`infra/gcp/README.md`](infra/gcp/README.md).
 
 ## Data notes
 
