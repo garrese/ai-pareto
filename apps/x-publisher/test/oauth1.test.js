@@ -17,3 +17,19 @@ test('OAuth 1.0a signing matches the RFC 5849 reference signature', () => {
 
   assert.match(authorization, /oauth_signature="tR3%2BTy81lMeYAr%2FFid0kMTYa%2FWM%3D"/);
 });
+
+test('OAuth 1.0a can sign a request-token call without a user token', () => {
+  const authorization = oauth1Authorization({
+    method: 'POST',
+    url: 'https://api.x.com/oauth/request_token',
+    consumerKey: 'key',
+    consumerSecret: 'secret',
+    oauthParameters: { oauth_callback: 'http://127.0.0.1:8788/oauth/callback' },
+    timestamp: 1_700_000_000,
+    nonce: 'fixed',
+  });
+
+  assert.match(authorization, /oauth_callback="http%3A%2F%2F127\.0\.0\.1%3A8788%2Foauth%2Fcallback"/);
+  assert.doesNotMatch(authorization, /oauth_token=/);
+  assert.match(authorization, /oauth_signature=/);
+});

@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "authorize": "node scripts/authorize-user.mjs",
     "start": "node src/server.js",
     "test": "node --test"
   },

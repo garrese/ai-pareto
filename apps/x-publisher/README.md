@@ -32,6 +32,29 @@ separate Secret Manager secret:
 
 Never put credential values in this directory, Terraform variables, container layers, or logs.
 
+### Authorize the bot account
+
+The developer App belongs to the personal X account, while posts are sent as a separate bot account.
+Configure the App in the Developer Console with these values:
+
+- App permissions: **Read and write**
+- App type: **Web App, Automated App or Bot** (confidential client)
+- Callback URI: `http://127.0.0.1:8788/oauth/callback`
+- Website URL: `https://ia-models-analyzer.web.app`
+
+Copy `config.properties.example` to the ignored `config.properties` and add the App API key and
+secret. During the initial transition, the authorization helper can also read `x.api.key` and
+`x.api.key.secret` from the API application's ignored `config.properties`. Then run:
+
+```bash
+npm run authorize
+```
+
+Open the printed URL, sign in as the bot account, and approve the App. The local callback exchanges
+the temporary verifier and writes the bot access token, token secret, and numeric user ID to the
+ignored publisher `config.properties`; it never prints token values. The callback only exists while
+the command is running. X requires `127.0.0.1` rather than `localhost` for local callbacks.
+
 ## Endpoints
 
 - `POST /pubsub/x` accepts the standard Pub/Sub push envelope.

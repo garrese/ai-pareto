@@ -11,7 +11,8 @@ export function oauth1Authorization({
   consumerKey,
   consumerSecret,
   accessToken,
-  accessTokenSecret,
+  accessTokenSecret = '',
+  oauthParameters = {},
   timestamp = Math.floor(Date.now() / 1000),
   nonce = randomBytes(16).toString('hex'),
 }) {
@@ -21,9 +22,10 @@ export function oauth1Authorization({
     oauth_nonce: nonce,
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp: String(timestamp),
-    oauth_token: accessToken,
     oauth_version: '1.0',
+    ...oauthParameters,
   };
+  if (accessToken) oauth.oauth_token = accessToken;
   const parameters = [...target.searchParams.entries(), ...Object.entries(oauth)]
     .map(([key, value]) => [encode(key), encode(value)])
     .sort(([leftKey, leftValue], [rightKey, rightValue]) =>
