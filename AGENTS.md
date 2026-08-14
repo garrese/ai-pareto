@@ -8,7 +8,9 @@ Multi-subproject repo. Each subproject lives under `apps/<name>`, is self-contai
 own tooling. There is no root build, no workspace manifest, and no shared dependency tree — do not
 add one at the root unless asked.
 
-All user-facing content (README, UI copy, code comments, commit messages) is written in **English**.
+All source code and public-facing content are written in **English**. This includes identifiers,
+README and generated documentation, UI copy, code comments, and commit messages. The repository is
+public, so assume that everything committed is world-readable.
 
 - `apps/api` — Node server, standard library only, no dependencies. Holds the token, caches the
   upstream response, serves `apps/web`.
@@ -136,7 +138,6 @@ Guidelines that still apply:
 - `.gitignore` deliberately excludes most AI-assistant config (`.claude/`, `.cursor/`, `AGENTS.md`,
   …) as local-only. **`CLAUDE.md` is the exception** — it is tracked and committed on purpose
   (2026-08-14), so write it as if it will be read by anyone browsing the repo, not just Claude.
-- The repo is public. Assume everything committed is world-readable.
 
 ## Agent-guide ownership
 
