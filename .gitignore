@@ -1,5 +1,5 @@
 # --- AI assistant / agent config (kept local, not shared) ---
-# CLAUDE.md is tracked on purpose — it's committed, not ignored.
+# AGENTS.md and CLAUDE.md are tracked on purpose — they are committed, not ignored.
 CLAUDE.local.md
 .claude/
 .cursor/
@@ -8,7 +8,6 @@ CLAUDE.local.md
 .codex/
 .gemini/
 GEMINI.md
-AGENTS.md
 .aider*
 .continue/
 .windsurfrules
