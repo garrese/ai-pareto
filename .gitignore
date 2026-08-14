@@ -50,6 +50,7 @@ crash.log
 crash.*.log
 
 # --- Tooling / framework caches ---
+.firebase/
 .vite/
 .parcel-cache/
 .next/
