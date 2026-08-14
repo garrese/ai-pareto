@@ -1,0 +1,7 @@
+.gcloudignore
+.git
+.gitignore
+config.properties
+node_modules/
+test/
+npm-debug.log*
