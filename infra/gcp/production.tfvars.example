@@ -2,6 +2,11 @@ project_id         = "ia-models-analyzer"
 region             = "europe-west1"
 firestore_location = "europe-west1"
 
+# Both default to project-derived globally unique names. Override only if an
+# existing resource already uses one of them.
+public_data_bucket_name = null
+firebase_site_id        = null
+
 # Set this locally to enable a billing-account budget. It is not a secret.
 billing_account_id   = null
 monthly_budget_units = 10

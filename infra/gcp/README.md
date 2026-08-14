@@ -1,9 +1,9 @@
 # Google Cloud infrastructure
 
-Terraform configuration for the Artificial Analyzer collector platform. It manages APIs, the public
-snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics, service accounts, IAM, Artifact
-Registry, the Cloud Run workloads, the collector's four-hour schedule, the X push subscription and
-dead-letter permissions, and an optional billing budget.
+Terraform configuration for the Artificial Analyzer platform. It manages APIs, the Firebase project
+and Hosting site, the public snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics,
+service accounts, IAM, Artifact Registry, the Cloud Run workloads, the collector's four-hour
+schedule, the X push subscription and dead-letter permissions, and an optional billing budget.
 
 Terraform never receives the Artificial Analysis key, so the value cannot enter plans or state. The
 secret container is managed here; a separate script sends the ignored local value directly to Secret
@@ -39,8 +39,18 @@ terraform apply
 
 With `collector_image = null`, the first apply creates the supporting infrastructure but not the
 Cloud Run Job or Scheduler. The X publisher remains disabled while `publisher_image` and `x_user_id`
-are null. The public bucket defaults to `<project-id>-public-data`; override it in the local values
-file if that globally unique name is unavailable.
+are null. It also enables Firebase on the existing Google Cloud project and creates the default
+Hosting site. The public bucket defaults to `<project-id>-public-data`, and the Hosting site ID
+defaults to the project ID; override either in the local values file if needed.
+
+Adding Firebase to a Google Cloud project is permanent. The Hosting site uses an abandon policy so
+removing it from Terraform cannot delete the live site. If either resource already exists, import it
+before applying rather than attempting to recreate it:
+
+```bash
+terraform import google_firebase_project.platform projects/ia-models-analyzer
+terraform import google_firebase_hosting_site.web projects/ia-models-analyzer/sites/ia-models-analyzer
+```
 
 Add the local API key as a Secret Manager version without placing it in Terraform state or command
 history:
@@ -88,6 +98,19 @@ the collector, and set `publisher_image` plus the numeric `x_user_id` in `produc
 The next apply creates a private scale-to-zero Cloud Run service, authenticated Pub/Sub push, retry
 policy, and a retained pull subscription for dead-letter inspection and replay. Do not grant
 `allUsers` permission to the publisher service.
+
+## Deploy the static web application
+
+After the collector has published its first snapshot, deploy the dependency-free frontend from its
+own subproject. Terraform creates the Hosting site; the Firebase CLI uploads the files and creates a
+release:
+
+```bash
+cd ../../apps/web
+firebase deploy --project ia-models-analyzer --only hosting
+```
+
+The command prints the same URL available as the `firebase_hosting_url` Terraform output.
 
 ## Safety notes
 

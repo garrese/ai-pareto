@@ -278,6 +278,11 @@ default region and Firestore location are `europe-west1`, immutable snapshots ar
 days, and the collector runs at minute 17 every four hours in UTC. These values remain configurable,
 but changing the Firestore location after database creation is not supported.
 
+Firebase project activation and the Hosting site are also declared in Terraform through the official
+beta provider because Firebase's Terraform support remains in preview. The Hosting site is abandoned,
+not deleted, if it is ever removed from Terraform; individual static releases remain the Firebase
+CLI's responsibility.
+
 Terraform creates the Secret Manager containers but never receives secret values. A separate local
 script streams the ignored Artificial Analysis key directly to `gcloud`, preventing credentials from
 entering Terraform plans or state. Collector images are digest-pinned, and the job runs one task with

@@ -3,6 +3,7 @@ locals {
     var.public_data_bucket_name,
     "${var.project_id}-public-data",
   )
+  firebase_site_id = coalesce(var.firebase_site_id, var.project_id)
   deploy_collector = var.collector_image != null
   deploy_publisher = var.publisher_image != null && var.x_user_id != null
 
@@ -13,6 +14,8 @@ locals {
     "cloudbuild.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "firebase.googleapis.com",
+    "firebasehosting.googleapis.com",
     "firestore.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",

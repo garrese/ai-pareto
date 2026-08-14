@@ -3,6 +3,11 @@ output "public_data_bucket" {
   value       = google_storage_bucket.public_data.name
 }
 
+output "firebase_hosting_url" {
+  description = "Default URL for the static web application."
+  value       = google_firebase_hosting_site.web.default_url
+}
+
 output "artifact_repository" {
   description = "Docker repository prefix used by Cloud Build."
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.containers.repository_id}"

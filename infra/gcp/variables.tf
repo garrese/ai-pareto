@@ -22,6 +22,21 @@ variable "public_data_bucket_name" {
   nullable    = true
 }
 
+variable "firebase_site_id" {
+  description = "Globally unique Firebase Hosting site ID; null uses the Google Cloud project ID."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = (
+      var.firebase_site_id == null ||
+      can(regex("^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$", var.firebase_site_id))
+    )
+    error_message = "firebase_site_id must be null or a lowercase domain label of at most 30 characters."
+  }
+}
+
 variable "snapshot_retention_days" {
   description = "Age after which immutable public snapshots are deleted."
   type        = number
