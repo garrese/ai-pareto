@@ -171,6 +171,12 @@ payload is:
 `eventId` is derived deterministically from the event type, front identifier, and canonical before
 and after states. Repeating the same refresh therefore produces the same event identity.
 
+The initial monitored objective sets are `cost-per-task-intelligence` and `price-intelligence`,
+covering the two affordability metrics exposed by the web application. The snapshot stores up to
+four tiers for each objective set, while change events describe only membership changes in the
+outermost non-dominated front. The first successful snapshot establishes the baseline and does not
+emit a change event.
+
 Breaking event changes require a new `schemaVersion`. Consumers must reject unsupported versions so
 that incompatible messages reach the dead-letter path instead of being misinterpreted.
 

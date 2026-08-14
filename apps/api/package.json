@@ -9,6 +9,8 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "snapshot": "node src/collector/local-run.js",
+    "test": "node --test"
   }
 }

@@ -19,6 +19,23 @@ npm start
 
 `npm run dev` restarts on file changes.
 
+Run the collector contract locally with the cached upstream response when one
+is available (or fetch once when it is not):
+
+```bash
+npm run snapshot
+```
+
+This writes generated public objects below `.cache/generated/public`. Snapshot
+objects are immutable and `latest.json` is written only after both snapshot
+objects succeed. Pass `-- --refresh` to explicitly bypass the upstream cache.
+
+Run the dependency-free Node test suite with:
+
+```bash
+npm test
+```
+
 ## Configuration
 
 `config.properties` is git-ignored and holds the token. Keys:
@@ -81,6 +98,14 @@ four today. Two files, both git-ignored:
 Being plain files, both survive a restart: bringing the server back up costs no quota. If a refresh
 fails, the cached copy is served with `stale: true` and `warning` set, rather than dropping the
 dataset.
+
+## Collector core
+
+`src/collector` contains I/O-independent snapshot, Pareto, event, and publication logic. The local
+snapshot store is one adapter for that core; Cloud Storage, Firestore, and Pub/Sub adapters will use
+the same contracts in production. Pareto change events are deterministic and only describe changes
+to the outermost front. The first production snapshot establishes the baseline without generating
+an event.
 
 ## Endpoint deprecation
 
