@@ -117,7 +117,7 @@ include:
 refresh-state/current
 pareto-state/<front-id>
 outbox-events/<event-id>
-notification-deliveries/x/<event-id>
+notification-channels/x/deliveries/<event-id>
 ```
 
 The transactional outbox closes the collector's dual-write gap: a refresh and its pending event are
@@ -125,7 +125,7 @@ recorded together before delivery is attempted. If publishing succeeds but marki
 fails, the collector may publish the same domain event again. Its deterministic event ID makes that
 safe for idempotent consumers.
 
-`notification-deliveries/x/<event-id>` contains the X delivery status, attempt metadata, an optional
+`notification-channels/x/deliveries/<event-id>` contains the X delivery status, attempt metadata, an optional
 lease, and the X post identifier after success. Firestore transactions prevent concurrent consumers
 from claiming the same event at the same time.
 
@@ -153,6 +153,11 @@ returning a successful HTTP status.
 
 If the event is already recorded as sent, the service acknowledges it without calling X again. If
 processing fails, it returns a non-successful status so Pub/Sub can retry.
+
+The publisher uses OAuth 1.0a User Context and stores the API key, API secret, user access token, and
+access-token secret as separate Secret Manager values. Every deterministic post includes a short
+event marker. Before creating a post, the publisher checks the authenticated user's recent timeline
+for that marker; finding it reconciles a previous accepted post whose Firestore update failed.
 
 ## Event contract
 

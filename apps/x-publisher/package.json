@@ -1,0 +1,17 @@
+{
+  "name": "artificial-analyzer-x-publisher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Idempotent Pub/Sub push consumer that publishes Pareto changes to X",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^9.0.0"
+  }
+}
