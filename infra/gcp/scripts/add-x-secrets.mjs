@@ -8,6 +8,10 @@ if (!projectId) {
   console.error('Usage: node scripts/add-x-secrets.mjs <google-cloud-project-id>');
   process.exit(2);
 }
+if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)) {
+  console.error('The Google Cloud project ID has an invalid format');
+  process.exit(2);
+}
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const configPath = resolve(here, '..', '..', '..', 'apps', 'x-publisher', 'config.properties');
@@ -39,7 +43,11 @@ for (const [secretId, value] of secrets) {
     const child = spawn(
       executable,
       ['secrets', 'versions', 'add', secretId, '--data-file=-', `--project=${projectId}`],
-      { stdio: ['pipe', 'inherit', 'inherit'] },
+      {
+        shell: process.platform === 'win32',
+        stdio: ['pipe', 'inherit', 'inherit'],
+        windowsHide: true,
+      },
     );
     child.stdin.end(value);
     child.on('error', reject);
