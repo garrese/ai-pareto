@@ -4,7 +4,7 @@
  * A point dominates another when it is at least as good on every objective and
  * strictly better on at least one. Front 1 is the set nobody dominates; remove
  * it and front 2 is what surfaces next, and so on. Peeling four times gives the
- * gold / silver / bronze / brown tiers.
+ * gold / silver / bronze / chocolate tiers.
  */
 
 /** @typedef {{ value: (item: any) => number, dir: 'max' | 'min' }} Objective */

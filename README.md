@@ -4,7 +4,7 @@ Charts the [Artificial Analysis](https://artificialanalysis.ai) language-model d
 tiers**: the first four Pareto fronts over any two of intelligence, price, speed and latency.
 
 Front 1 (*gold*) is the set of models that nothing else beats on both axes at once. Peel it away and
-front 2 (*silver*) surfaces, then *bronze*, then *brown*. Everything else is dominated by at
+front 2 (*silver*) surfaces, then *bronze*, then *chocolate*. Everything else is dominated by at
 least four models and is drawn in the background.
 
 > **Status:** production deployment infrastructure is implemented but not yet applied.

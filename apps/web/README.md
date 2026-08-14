@@ -1,7 +1,7 @@
 # web
 
 Static frontend: a scatter plot of the Artificial Analysis model dataset with the first four Pareto
-fronts drawn as tiers — gold, silver, bronze, brown.
+fronts drawn as tiers — gold, silver, bronze, chocolate.
 
 Plain HTML, CSS and ES modules. No build step, no dependencies, no framework.
 
@@ -69,7 +69,7 @@ wide display instead of topping out at a fixed width. Tick density follows the s
 
 ## Colours
 
-The tiers follow the medal metaphor: gold, silver, bronze, brown. Each mode has its own steps,
+The tiers follow the medal metaphor: gold, silver, bronze, chocolate. Each mode has its own steps,
 picked against its own surface.
 
 | Tier | Light | Dark |
@@ -77,7 +77,7 @@ picked against its own surface.
 | Gold | `#cfa81c` | `#e8c33a` |
 | Silver | `#9aa3b0` | `#c3cbd6` |
 | Bronze | `#a05f0e` | `#cf8720` |
-| Brown | `#57321a` | `#8a4f2c` |
+| Chocolate | `#57321a` | `#8a4f2c` |
 
 The steps were tuned until every pair is separable: worst pair ΔE 17.1 light / 15.7 dark under
 normal vision, 17.0 / 14.5 under simulated protanopia and deuteranopia (OKLab ×100, floors 15 and
