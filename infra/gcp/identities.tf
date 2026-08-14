@@ -25,6 +25,24 @@ resource "google_service_account" "builder" {
   depends_on = [google_project_service.required]
 }
 
+resource "google_service_account" "x_publisher" {
+  project      = var.project_id
+  account_id   = "aa-x-publisher"
+  display_name = "Artificial Analyzer X publisher"
+  description  = "Consumes Pareto events and updates only X delivery state."
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_service_account" "pubsub_push" {
+  project      = var.project_id
+  account_id   = "aa-pubsub-push"
+  display_name = "Artificial Analyzer Pub/Sub push identity"
+  description  = "Authenticates Pub/Sub pushes to the private X publisher service."
+
+  depends_on = [google_project_service.required]
+}
+
 resource "google_secret_manager_secret_iam_member" "collector_secret_accessor" {
   project   = var.project_id
   secret_id = google_secret_manager_secret.artificial_analysis.secret_id
@@ -75,4 +93,33 @@ resource "google_project_iam_member" "builder_source_reader" {
   project = var.project_id
   role    = "roles/storage.objectViewer"
   member  = "serviceAccount:${google_service_account.builder.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "publisher_secret_accessor" {
+  for_each = google_secret_manager_secret.x
+
+  project   = var.project_id
+  secret_id = each.value.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.x_publisher.email}"
+}
+
+resource "google_project_iam_member" "publisher_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.x_publisher.email}"
+}
+
+resource "google_project_iam_member" "publisher_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.x_publisher.email}"
+}
+
+resource "google_service_account_iam_member" "pubsub_push_token_creator" {
+  service_account_id = google_service_account.pubsub_push.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.required]
 }

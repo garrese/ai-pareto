@@ -282,6 +282,12 @@ script streams the ignored Artificial Analysis key directly to `gcloud`, prevent
 entering Terraform plans or state. Collector images are digest-pinned, and the job runs one task with
 two Cloud Run retries.
 
+The same bootstrap apply creates empty X credential secret containers. The publisher service and its
+push subscription remain absent until both a digest-pinned publisher image and numeric X user ID are
+provided. Enabling them creates the private scale-to-zero service, authenticated Pub/Sub push,
+ten-attempt dead-letter policy, a retained pull subscription for failed events, and the IAM bindings
+required by the Pub/Sub service agent.
+
 Production deployment requires a billing-enabled Google Cloud project even when usage remains within
 the free tiers. Budget alerts and available service-level spending caps are safety controls, not a
 replacement for quotas and least-privilege configuration.

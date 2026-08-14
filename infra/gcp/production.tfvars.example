@@ -10,3 +10,9 @@ budget_currency      = "EUR"
 # Leave null for the first apply. After Cloud Build finishes, set the immutable
 # Artifact Registry URL ending in @sha256:<digest> and apply again.
 collector_image = null
+
+# Leave both null until the X developer App and user token are ready. Then set
+# the digest-pinned publisher image and the numeric authenticated user ID.
+publisher_image = null
+x_user_id       = null
+public_site_url = null

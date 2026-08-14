@@ -4,6 +4,7 @@ locals {
     "${var.project_id}-public-data",
   )
   deploy_collector = var.collector_image != null
+  deploy_publisher = var.publisher_image != null && var.x_user_id != null
 
   required_services = toset([
     "artifactregistry.googleapis.com",
@@ -22,6 +23,13 @@ locals {
     "serviceusage.googleapis.com",
     "storage.googleapis.com",
   ])
+}
+
+check "publisher_configuration" {
+  assert {
+    condition     = (var.publisher_image == null) == (var.x_user_id == null)
+    error_message = "publisher_image and x_user_id must either both be set or both be null."
+  }
 }
 
 data "google_project" "current" {

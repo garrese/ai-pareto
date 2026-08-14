@@ -27,3 +27,18 @@ output "collector_schedule" {
   description = "UTC schedule, or null until a collector image is supplied."
   value       = try(google_cloud_scheduler_job.collector[0].schedule, null)
 }
+
+output "publisher_service" {
+  description = "Private Cloud Run publisher name, or null until its image and X user ID are supplied."
+  value       = try(google_cloud_run_v2_service.x_publisher[0].name, null)
+}
+
+output "publisher_subscription" {
+  description = "Pub/Sub push subscription, or null until the publisher is enabled."
+  value       = try(google_pubsub_subscription.x_publisher[0].name, null)
+}
+
+output "publisher_dead_letter_subscription" {
+  description = "Pull subscription retaining X events that exhausted delivery retries."
+  value       = try(google_pubsub_subscription.x_publisher_dead_letter[0].name, null)
+}

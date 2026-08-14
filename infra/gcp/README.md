@@ -2,7 +2,8 @@
 
 Terraform configuration for the Artificial Analyzer collector platform. It manages APIs, the public
 snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics, service accounts, IAM, Artifact
-Registry, the Cloud Run Job, its four-hour schedule, and an optional billing budget.
+Registry, the Cloud Run workloads, the collector's four-hour schedule, the X push subscription and
+dead-letter permissions, and an optional billing budget.
 
 Terraform never receives the Artificial Analysis key, so the value cannot enter plans or state. The
 secret container is managed here; a separate script sends the ignored local value directly to Secret
@@ -37,8 +38,9 @@ terraform apply
 ```
 
 With `collector_image = null`, the first apply creates the supporting infrastructure but not the
-Cloud Run Job or Scheduler. The public bucket defaults to `<project-id>-public-data`; override it in
-the local values file if that globally unique name is unavailable.
+Cloud Run Job or Scheduler. The X publisher remains disabled while `publisher_image` and `x_user_id`
+are null. The public bucket defaults to `<project-id>-public-data`; override it in the local values
+file if that globally unique name is unavailable.
 
 Add the local API key as a Secret Manager version without placing it in Terraform state or command
 history:
@@ -70,6 +72,22 @@ echo "${IMAGE}@${DIGEST}"
 Put that complete digest URL in the ignored `production.auto.tfvars` as `collector_image`, then run
 `terraform plan` and `terraform apply` again. Terraform creates one-task Cloud Run execution with two
 task retries and Cloud Scheduler invokes it at minute 17 every four hours in UTC.
+
+## Enable the X publisher later
+
+The bootstrap apply already creates four empty X Secret Manager containers. When an X developer App
+and OAuth 1.0a user token are available, copy `apps/x-publisher/config.properties.example` to the
+ignored `config.properties`, fill it locally, and stream the four values to Secret Manager:
+
+```bash
+node scripts/add-x-secrets.mjs ia-models-analyzer
+```
+
+Build `apps/x-publisher` with its own `cloudbuild.yaml`, resolve the tag to a digest exactly as for
+the collector, and set `publisher_image` plus the numeric `x_user_id` in `production.auto.tfvars`.
+The next apply creates a private scale-to-zero Cloud Run service, authenticated Pub/Sub push, retry
+policy, and a retained pull subscription for dead-letter inspection and replay. Do not grant
+`allUsers` permission to the publisher service.
 
 ## Safety notes
 
