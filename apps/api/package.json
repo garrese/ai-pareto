@@ -2,15 +2,21 @@
   "name": "artificial-analyzer-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Thin cached proxy over the Artificial Analysis API",
+  "description": "Local API and production collector for Artificial Analyzer",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "collector:cloud": "node src/collector/cloud-run.js",
     "snapshot": "node src/collector/local-run.js",
     "test": "node --test"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^9.0.0",
+    "@google-cloud/pubsub": "^6.0.1",
+    "google-auth-library": "^11.0.2"
   }
 }

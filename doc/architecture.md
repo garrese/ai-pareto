@@ -79,6 +79,11 @@ One execution:
 9. Publishes pending outbox events to Pub/Sub and marks them as enqueued.
 10. Records the completed refresh and the last observed upstream rate-limit snapshot.
 
+The Cloud Run container uses Application Default Credentials from its dedicated service account.
+Firestore and Pub/Sub use their official Node.js clients. Cloud Storage uses its JSON API with the
+official Google authentication client, create-only generation preconditions for immutable objects,
+and a short-lived cache policy for `latest.json`.
+
 A notification failure never causes the collector to refetch upstream data. Once an event is
 accepted by Pub/Sub, notification delivery is a separate responsibility.
 

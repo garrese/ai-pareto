@@ -1,9 +1,11 @@
 # api
 
-Local Node server. It holds the Artificial Analysis token, caches the model list, and serves the
-`apps/web` frontend so both run from one origin.
+Local Node server and production collector. The local server holds the Artificial Analysis token,
+caches the model list, and serves the `apps/web` frontend so both run from one origin. The Cloud Run
+Job entry point publishes immutable datasets and transactional Pareto-change events.
 
-No dependencies — it uses only the Node standard library. Requires Node.js 20 or newer.
+The local server uses only the Node standard library. The production collector uses the official
+Firestore, Pub/Sub, and Google authentication clients. Requires Node.js 22 or newer.
 
 ## Setup
 
@@ -106,6 +108,34 @@ snapshot store is one adapter for that core; Cloud Storage, Firestore, and Pub/S
 the same contracts in production. Pareto change events are deterministic and only describe changes
 to the outermost front. The first production snapshot establishes the baseline without generating
 an event.
+
+## Cloud Run collector
+
+`src/collector/cloud-run.js` is a finite job entry point: it performs or resumes one refresh and
+exits with a non-zero status on failure so Cloud Run can retry it. It never starts an HTTP server.
+The container is built from this directory:
+
+```bash
+docker build -t artificial-analyzer-collector .
+```
+
+Cloud Run injects the Artificial Analysis secret as `AA_API_KEY` from Secret Manager. Application
+Default Credentials come from the job's dedicated service account; no service-account key file is
+stored in the image or configured through `GOOGLE_APPLICATION_CREDENTIALS`.
+
+| Environment variable | Required | Meaning |
+| --- | --- | --- |
+| `GOOGLE_CLOUD_PROJECT` or `GCP_PROJECT_ID` | Yes | Google Cloud project identifier. |
+| `PUBLIC_DATA_BUCKET` | Yes | Dedicated bucket for generated public JSON. |
+| `AA_API_KEY` | Yes | Secret Manager value exposed only to the job process. |
+| `PARETO_TOPIC` | No | Pub/Sub topic; defaults to `pareto-change-events`. |
+| `COLLECTOR_LEASE_SECONDS` | No | Firestore execution lease; defaults to 900 seconds. |
+| `AA_API_BASE` / `AA_API_PATH` | No | Upstream endpoint overrides. |
+
+The job must be configured with exactly one task. Firestore prevents overlapping executions, stores
+prepared manifests, and records Pareto state plus outbox events in one transaction. A retry after a
+manifest failure resumes publication; a retry after a Pub/Sub failure drains the outbox without
+fetching Artificial Analysis again.
 
 ## Endpoint deprecation
 

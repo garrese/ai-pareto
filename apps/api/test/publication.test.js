@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { publishSnapshot } from '../src/collector/publication.js';
+import {
+  publishImmutableObjects,
+  publishManifestObject,
+  publishSnapshot,
+} from '../src/collector/publication.js';
 
 const artifacts = {
   immutableObjects: [
@@ -42,4 +46,22 @@ test('an immutable write failure leaves the manifest untouched', async () => {
 
   await assert.rejects(() => publishSnapshot(artifacts, storage), /upload failed/);
   assert.equal(manifestWritten, false);
+});
+
+test('immutable objects and the manifest can be published in separate phases', async () => {
+  const calls = [];
+  const storage = {
+    async putImmutable(path) {
+      calls.push(['immutable', path]);
+    },
+    async putManifest(path) {
+      calls.push(['manifest', path]);
+    },
+  };
+
+  await publishImmutableObjects(artifacts, storage);
+  assert.equal(calls.some(([kind]) => kind === 'manifest'), false);
+
+  await publishManifestObject(artifacts, storage);
+  assert.deepEqual(calls.at(-1), ['manifest', 'public/latest.json']);
 });

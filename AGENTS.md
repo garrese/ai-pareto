@@ -12,12 +12,13 @@ All source code and public-facing content are written in **English**. This inclu
 README and generated documentation, UI copy, code comments, and commit messages. The repository is
 public, so assume that everything committed is world-readable.
 
-- `apps/api` — Node server, standard library only, no dependencies. Holds the token, caches the
-  upstream response, serves `apps/web`.
+- `apps/api` — Node server plus the production collector job. The local server uses the standard
+  library; the collector uses official Firestore, Pub/Sub, and Google authentication clients. It
+  holds the token, caches the upstream response locally, and serves `apps/web` during development.
 - `apps/web` — static frontend, plain HTML/CSS/ES modules, no build step, no dependencies.
 
-Keep both dependency-free unless there is a concrete reason not to; it is a deliberate constraint,
-not an accident.
+Keep the local server and frontend dependency-free. Production Google Cloud integration is the
+concrete exception: use narrowly scoped official clients and audit their production dependency tree.
 
 ## Why there is a backend
 

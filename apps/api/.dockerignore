@@ -1,0 +1,5 @@
+config.properties
+.cache
+node_modules
+test
+npm-debug.log*

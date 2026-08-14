@@ -50,31 +50,48 @@ function normalizeModel(raw) {
 }
 
 function readRateLimit(headers, fallbackLimit) {
-  const limit = Number(headers.get('x-ratelimit-limit'));
-  const remaining = Number(headers.get('x-ratelimit-remaining'));
-  const reset = Number(headers.get('x-ratelimit-reset'));
+  const numberHeader = (name) => {
+    const raw = headers.get(name);
+    if (raw === null || raw.trim() === '') return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
+  const limit = numberHeader('x-ratelimit-limit');
+  const remaining = numberHeader('x-ratelimit-remaining');
+  const reset = numberHeader('x-ratelimit-reset');
 
   // The endpoint sends these today; older paths did not. Fall back to the
   // configured limit rather than reporting a confident wrong number.
-  if (!Number.isFinite(limit) || !Number.isFinite(remaining)) {
+  if (limit === null || remaining === null) {
     return { limit: fallbackLimit, remaining: null, resetsAt: null, source: 'config' };
   }
 
   return {
     limit,
     remaining,
-    resetsAt: Number.isFinite(reset) ? new Date(reset * 1000).toISOString() : null,
+    resetsAt: reset !== null ? new Date(reset * 1000).toISOString() : null,
     source: 'headers',
   };
 }
 
 export class ArtificialAnalysisClient {
-  constructor({ apiKey, apiBase, apiPath, cacheDir, cacheTtlMs, dailyLimit }) {
+  constructor({
+    apiKey,
+    apiBase,
+    apiPath,
+    cacheDir,
+    cacheTtlMs,
+    dailyLimit,
+    fetchImpl = fetch,
+    now = () => new Date(),
+  }) {
     this.apiKey = apiKey;
     this.url = `${apiBase}${apiPath}`;
     this.cacheTtlMs = cacheTtlMs;
     this.dailyLimit = dailyLimit;
     this.cacheDir = cacheDir;
+    this.fetchImpl = fetchImpl;
+    this.now = now;
     this.modelsFile = resolve(cacheDir, 'models.json');
     this.usageFile = resolve(cacheDir, 'usage.json');
   }
@@ -112,7 +129,7 @@ export class ArtificialAnalysisClient {
     const previous = await this.#readJson(this.usageFile);
     await this.#writeJson(this.usageFile, {
       ...rateLimit,
-      observedAt: new Date().toISOString(),
+      observedAt: this.now().toISOString(),
       requestsMade: (previous?.requestsMade ?? 0) + requestCount,
     });
   }
@@ -121,7 +138,7 @@ export class ArtificialAnalysisClient {
    * Walks every page of the model list. Each page is one request against the
    * daily quota, so the result is cached aggressively upstream of this call.
    */
-  async #fetchModels() {
+  async fetchModels() {
     const models = [];
     let rateLimit = null;
     let requestCount = 0;
@@ -131,7 +148,7 @@ export class ArtificialAnalysisClient {
       const url = new URL(this.url);
       url.searchParams.set('page', String(page));
 
-      const res = await fetch(url, { headers: { 'x-api-key': this.apiKey } });
+      const res = await this.fetchImpl(url, { headers: { 'x-api-key': this.apiKey } });
       requestCount += 1;
 
       if (!res.ok) {
@@ -153,10 +170,14 @@ export class ArtificialAnalysisClient {
       page += 1;
     }
 
+    if (page > MAX_PAGES) {
+      throw new Error(`Artificial Analysis pagination exceeded the safety limit of ${MAX_PAGES} pages`);
+    }
+
     await this.#recordUsage(rateLimit, requestCount);
 
     return {
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: this.now().toISOString(),
       models,
       pages: requestCount,
       rateLimit,
@@ -177,7 +198,7 @@ export class ArtificialAnalysisClient {
     }
 
     try {
-      const fresh = await this.#fetchModels();
+      const fresh = await this.fetchModels();
       await this.#writeJson(this.modelsFile, fresh);
       return { ...fresh, cache: 'miss', stale: false };
     } catch (err) {

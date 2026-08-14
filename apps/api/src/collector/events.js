@@ -32,6 +32,10 @@ export function createParetoChangeEvents({ previous = null, current, occurredAt 
   );
 
   return frontIds.flatMap((frontId) => {
+    // A newly configured objective set establishes its own baseline. Removing
+    // a definition is configuration work, not a domain change to announce.
+    if (!beforeByFront.has(frontId) || !afterByFront.has(frontId)) return [];
+
     const before = beforeByFront.get(frontId) ?? [];
     const after = afterByFront.get(frontId) ?? [];
     const beforeSet = new Set(before);

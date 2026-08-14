@@ -35,6 +35,17 @@ test('changes below the outermost front do not emit events', () => {
   );
 });
 
+test('a newly monitored objective set establishes a baseline without an event', () => {
+  assert.deepEqual(
+    createParetoChangeEvents({
+      previous: { snapshotId: 'snapshot-before', fronts: [] },
+      current: document('snapshot-after', ['model-a']),
+      occurredAt,
+    }),
+    [],
+  );
+});
+
 test('front changes produce deterministic versioned events', () => {
   const previous = document('snapshot-before', ['model-b', 'model-a']);
   const current = document('snapshot-after', ['model-c', 'model-b']);
