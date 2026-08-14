@@ -50,12 +50,12 @@ export const METRICS = {
   },
 };
 
-/** Tier names come straight from the medal metaphor; the ramp is gold → chocolate. */
+/** Tier names use English colour labels; the fourth colour is a chocolate brown. */
 export const TIERS = [
   { name: 'Gold', description: 'Pareto front 1' },
   { name: 'Silver', description: 'Pareto front 2' },
   { name: 'Bronze', description: 'Pareto front 3' },
-  { name: 'Chocolate', description: 'Pareto front 4' },
+  { name: 'Brown', description: 'Pareto front 4' },
 ];
 
 export const objectiveFor = (metricKey) => ({
