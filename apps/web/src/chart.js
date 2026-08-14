@@ -1,10 +1,12 @@
-import { frontStaircase } from './pareto.js';
+import { frontPath } from './pareto.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Below this the axis labels stop being legible, so the chart scrolls instead. */
-const MIN_WIDTH = 560;
-const PAD = { top: 20, right: 28, bottom: 58, left: 78 };
+const COMPACT_BREAKPOINT = 520;
+const MIN_COMPACT_WIDTH = 260;
+const MIN_WIDE_WIDTH = 560;
+const COMPACT_PAD = { top: 10, right: 10, bottom: 30, left: 52 };
+const WIDE_PAD = { top: 12, right: 20, bottom: 34, left: 64 };
 
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
@@ -31,7 +33,7 @@ function makeScale({ values, type, range }) {
   const [r0, r1] = range;
   return {
     map: (v) => r0 + ((project(v) - lo) / (hi - lo)) * (r1 - r0),
-    ticks: (target) => (useLog ? logTicks(lo, hi) : linearTicks(lo, hi, target)),
+    ticks: (target) => (useLog ? logTicks(lo, hi, target) : linearTicks(lo, hi, target)),
   };
 }
 
@@ -45,7 +47,7 @@ function linearTicks(lo, hi, target = 7) {
   return ticks;
 }
 
-function logTicks(lo, hi) {
+function logTicks(lo, hi, target = 7) {
   const ticks = [];
   for (let exp = Math.floor(lo); exp <= Math.ceil(hi); exp++) {
     for (const mantissa of [1, 2, 5]) {
@@ -54,13 +56,23 @@ function logTicks(lo, hi) {
       if (projected >= lo && projected <= hi) ticks.push(value);
     }
   }
-  return ticks.length > 2 ? ticks : linearTicks(10 ** lo, 10 ** hi);
+  if (ticks.length <= 2) return linearTicks(10 ** lo, 10 ** hi, target);
+  if (ticks.length <= target) return ticks;
+
+  return [
+    ...new Set(
+      Array.from(
+        { length: target },
+        (_, index) => ticks[Math.round((index * (ticks.length - 1)) / (target - 1))],
+      ),
+    ),
+  ];
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
 
 /**
- * Draws the scatter plus the tiered Pareto staircases.
+ * Draws the scatter plus the tiered Pareto fronts.
  *
  * The viewBox is sized to the container in CSS pixels, so the chart fills the
  * space it is given on any display and label sizes stay true regardless of it.
@@ -107,13 +119,29 @@ export function renderChart({
     return;
   }
 
-  const width = Math.max(MIN_WIDTH, Math.floor(container.clientWidth));
-  const height = Math.max(360, Math.floor(container.clientHeight));
+  const yTitle = document.createElement('div');
+  yTitle.className = 'chart-axis-label chart-axis-y';
+  yTitle.textContent = `Y · ${yMetric.axisLabel} · ${yMetric.dir === 'min' ? 'lower' : 'higher'} is better`;
+
+  const viewport = document.createElement('div');
+  viewport.className = 'chart-plot';
+
+  const xTitle = document.createElement('div');
+  xTitle.className = 'chart-axis-label chart-axis-x';
+  xTitle.textContent = `X · ${xMetric.axisLabel} · ${xMetric.dir === 'min' ? 'lower' : 'higher'} is better`;
+  container.append(yTitle, viewport, xTitle);
+
+  const viewportBox = viewport.getBoundingClientRect();
+  const compact = viewportBox.width <= COMPACT_BREAKPOINT;
+  const minimumWidth = compact ? MIN_COMPACT_WIDTH : MIN_WIDE_WIDTH;
+  const width = Math.max(minimumWidth, Math.floor(viewportBox.width));
+  const height = Math.max(240, Math.floor(viewportBox.height));
+  const pad = compact ? COMPACT_PAD : WIDE_PAD;
   const plot = {
-    x: PAD.left,
-    y: PAD.top,
-    width: width - PAD.left - PAD.right,
-    height: height - PAD.top - PAD.bottom,
+    x: pad.left,
+    y: pad.top,
+    width: width - pad.left - pad.right,
+    height: height - pad.top - pad.bottom,
   };
 
   const x = makeScale({
@@ -128,7 +156,7 @@ export function renderChart({
   });
 
   // Roughly one label per 110px horizontally, one per 60px vertically.
-  const xTicks = x.ticks(Math.max(4, Math.round(plot.width / 110)));
+  const xTicks = x.ticks(Math.max(compact ? 3 : 4, Math.round(plot.width / 110)));
   const yTicks = y.ticks(Math.max(4, Math.round(plot.height / 60)));
 
   const svg = el('svg', {
@@ -184,21 +212,6 @@ export function renderChart({
   }
   svg.append(tickLabels);
 
-  const axisTitles = el('g', { class: 'axis-title' });
-  const xTitle = el('text', {
-    x: plot.x + plot.width / 2,
-    y: height - 12,
-    'text-anchor': 'middle',
-  });
-  xTitle.textContent = `${xMetric.axisLabel} — ${xMetric.dir === 'min' ? 'lower' : 'higher'} is better`;
-  const yTitle = el('text', {
-    transform: `rotate(-90) translate(${-(plot.y + plot.height / 2)} 18)`,
-    'text-anchor': 'middle',
-  });
-  yTitle.textContent = `${yMetric.axisLabel} — ${yMetric.dir === 'min' ? 'lower' : 'higher'} is better`;
-  axisTitles.append(xTitle, yTitle);
-  svg.append(axisTitles);
-
   // Marks -------------------------------------------------------------------
   const markClass = (model) => (matches && matches.has(model.id) ? 'is-match' : '');
 
@@ -223,7 +236,7 @@ export function renderChart({
 
   fronts.forEach((front, index) => {
     if (!shows(index)) return;
-    const path = frontStaircase(front, xObjective, yObjective);
+    const path = frontPath(front, xObjective, yObjective);
     if (path.length > 1) {
       const d = path.map((p, i) => `${i === 0 ? 'M' : 'L'}${x.map(p.x)} ${y.map(p.y)}`).join(' ');
       svg.append(el('path', { class: `front-line tier-${index}`, d }));
@@ -296,5 +309,5 @@ export function renderChart({
   });
 
   svg.append(surface);
-  container.append(svg);
+  viewport.append(svg);
 }

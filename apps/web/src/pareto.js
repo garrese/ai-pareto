@@ -49,34 +49,9 @@ export function paretoFronts(items, objectives, maxFronts = 4) {
   return fronts;
 }
 
-/**
- * Ordered points of a front, plus the staircase corners that make the trade-off
- * boundary explicit: between two neighbouring models the best you can reach is
- * the weaker of the two on each axis.
- */
-export function frontStaircase(front, xObjective, yObjective) {
-  const points = front
+/** Ordered points of a front, ready to connect with direct line segments. */
+export function frontPath(front, xObjective, yObjective) {
+  return front
     .map((item) => ({ item, x: xObjective.value(item), y: yObjective.value(item) }))
     .sort((a, b) => a.x - b.x || a.y - b.y);
-
-  if (points.length < 2) return points;
-
-  const worseOrEqual = (candidate, reference, dir) =>
-    dir === 'max' ? candidate <= reference : candidate >= reference;
-
-  const path = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-
-    // Of the two corners between prev and curr, exactly one is reachable: the
-    // one that is no better than both neighbours on both axes.
-    const corner =
-      worseOrEqual(curr.y, prev.y, yObjective.dir) && worseOrEqual(prev.x, curr.x, xObjective.dir)
-        ? { x: prev.x, y: curr.y }
-        : { x: curr.x, y: prev.y };
-
-    path.push({ ...corner, corner: true }, curr);
-  }
-  return path;
 }

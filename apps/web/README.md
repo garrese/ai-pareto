@@ -41,9 +41,8 @@ If Terraform had to use a non-default public bucket name, update the public `dat
 - **Axes.** Any two of intelligence, price per token, cost per task, speed and latency, defaulting
   to cost per task against intelligence. Each metric knows whether higher or lower is better, so
   the Pareto direction follows the selection.
-- **Tiers.** `paretoFronts` peels four fronts by non-dominated sorting. The staircase drawn through
-  each front is the trade-off boundary: between two neighbouring models the best you can reach is
-  the weaker of the two on each axis.
+- **Tiers.** `paretoFronts` peels four fronts by non-dominated sorting. Neighbouring models on each
+  front are connected directly in metric order.
 - **Highlight.** Typing in the search box rings every model whose name or creator contains the text
   and recedes the rest. It highlights rather than filters, so the fronts do not move under you.
 - **Creators.** A checkbox list, so arbitrary combinations are possible. This one *does* filter, and
@@ -61,7 +60,7 @@ wide display instead of topping out at a fixed width. Tick density follows the s
 
 | File | Role |
 | --- | --- |
-| `src/pareto.js` | Non-dominated sorting and the staircase geometry. No DOM. |
+| `src/pareto.js` | Non-dominated sorting and ordered front geometry. No DOM. |
 | `src/metrics.js` | The four metrics, their direction, scale and formatting. |
 | `src/chart.js` | SVG scales, axes, marks and the nearest-point hover layer. |
 | `src/api.js` | Selects local API or public snapshots and validates the snapshot contract. |
