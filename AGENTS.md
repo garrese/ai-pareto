@@ -85,6 +85,13 @@ The key lives in `apps/api/config.properties` (git-ignored, `*.properties` with 
 `!*.properties.example` negation). It is read server-side, never sent to the browser, and never
 included in an API response — the 401 body is echoed in `warning`, and it does not contain the key.
 
+## Brand
+
+The project and its X bot use **AI Pareto Radar** as their primary name. The preferred X handle is
+`@AIParetoRadar`, subject to availability. The brand describes data-driven comparisons of AI models
+across intelligence, speed, and cost, with a focus on Pareto frontiers. Keep public-facing brand copy
+in English unless the user explicitly requests a localized variant.
+
 ## Charts
 
 Tier colours are literal medals (gold, silver, bronze, chocolate) at the user's explicit request,
