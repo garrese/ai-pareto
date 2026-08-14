@@ -31,6 +31,7 @@ test('immutable uploads use a create-only precondition and long-lived caching', 
   assert.equal(url.searchParams.get('ifGenerationMatch'), '0');
   assert.match(calls[0].options.body, /max-age=31536000, immutable/);
   assert.match(calls[0].options.body, /public\/snapshots\/id\/models\.json/);
+  assert.match(calls[0].options.body, /"contentType":"application\/json; charset=UTF-8"/);
   assert.equal(calls[0].options.headers.get('authorization'), 'Bearer test-token');
 });
 

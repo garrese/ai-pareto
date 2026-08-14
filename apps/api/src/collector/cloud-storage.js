@@ -64,7 +64,7 @@ export class CloudStorageJsonStore {
       method: 'POST',
       headers,
       body: multipartBody(
-        { name: objectPath, contentType: 'application/json', cacheControl },
+        { name: objectPath, contentType: 'application/json; charset=UTF-8', cacheControl },
         payload,
         boundary,
       ),
