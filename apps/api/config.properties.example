@@ -15,6 +15,15 @@ aa.api.path=/language/models/free
 # figure is read from the X-RateLimit-* response headers.
 aa.api.daily.limit=100
 
+# X API credentials. Create an App in the X Developer Console, then generate fresh
+# values after copying this template to config.properties. Never put live values in
+# this example file or in source code.
+# x.api.key=
+# x.api.key.secret=
+# x.api.bearer.token=
+# x.api.access.token=
+# x.api.access.token.secret=
+
 # Port the local server listens on.
 server.port=8787
 
