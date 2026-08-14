@@ -1,0 +1,23 @@
+# Copy this file to `config.properties` and fill in your own key.
+# `config.properties` is git-ignored and must never be committed.
+
+# Your Artificial Analysis API key. Get one at https://artificialanalysis.ai/data-api
+aa.api.key=
+
+# API base URL. Only change this if the vendor moves the endpoint.
+aa.api.base=https://artificialanalysis.ai/api/v2
+
+# Endpoint path. `/language/models/free` replaced `/data/llms/models`, which the
+# vendor retires on 2026-11-04.
+aa.api.path=/language/models/free
+
+# Requests allowed per 24h window. Only used as a fallback label — the real
+# figure is read from the X-RateLimit-* response headers.
+aa.api.daily.limit=100
+
+# Port the local server listens on.
+server.port=8787
+
+# How long a cached response stays fresh, in minutes. One refresh costs one
+# request per page of results, so keep this generous.
+cache.ttl.minutes=360
