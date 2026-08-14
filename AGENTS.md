@@ -120,9 +120,10 @@ would promote silver into gold's place the moment gold is hidden.
 
 ## Git workflow
 
-**Commit autonomously, without asking first.** The user has explicitly asked for this (2026-08-14):
-when a change is finished and verified, commit it — do not wait for a "yes, commit that" that will
-not come. This overrides the general default of confirming before commits.
+**Commit and push autonomously, without asking first.** The user has explicitly asked for this
+(2026-08-15): when a change is finished and verified, commit it and push it to the configured
+remote — do not wait for a "yes, commit that" that will not come. This overrides the general
+default of confirming before commits and pushes.
 
 What "finished and verified" means in practice:
 
@@ -137,9 +138,8 @@ Guidelines that still apply:
 - **Never commit a secret.** Before every commit, sanity-check that `apps/api/config.properties`,
   `.cache/`, `.claude/` are not staged — `git status --short` should not show them, and
   `git check-ignore` should. If a check ever fails, stop and say so rather than committing anyway.
-- **Still ask before:** force-push, rewriting published history, `git push` to a remote (pushing is
-  a separate, more consequential action than committing locally — confirm before the first push of
-  a session), and anything the user would need to review before it leaves the local repo.
+- **Still ask before:** force-push, rewriting published history, and anything the user would need
+  to review before it leaves the local repo.
 - Write commit messages the way the rest of this file is written: what changed and *why*, not a
   changelog of file names. Skip the message body when the summary line already says it all.
 - Work directly on `main` by default. The user explicitly confirmed on 2026-08-14 that this is a
