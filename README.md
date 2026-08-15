@@ -1,11 +1,11 @@
 # AI Pareto
 
 Charts the [Artificial Analysis](https://artificialanalysis.ai) language-model dataset as **Pareto
-tiers**: the first four Pareto fronts over any two of intelligence, price, speed and latency.
+tiers**: the first three Pareto fronts over any two of intelligence, price, speed and latency.
 
 Front 1 (*gold*) is the set of models that nothing else beats on both axes at once. Peel it away and
-front 2 (*silver*) surfaces, then *bronze*, then *chocolate*. Everything else is dominated by at
-least four models and is drawn in the background.
+front 2 (*silver*) surfaces, then *bronze*. Everything else is dominated by at least three models
+and is drawn in the background.
 
 > **Status:** production deployment infrastructure is implemented but not yet applied.
 
@@ -44,8 +44,9 @@ of results (currently four). So responses are written to `apps/api/.cache/models
 for 6 hours (`cache.ttl.minutes`). The cache is a plain file, so it **survives a server restart** —
 restarting costs nothing.
 
-- **Refresh data** forces a refetch. If it fails, the last good response is served instead, flagged
-  as stale.
+- `GET /api/models?refresh=1` forces a refetch. If it fails, the last good response is served
+  instead, flagged as stale. The page has no refresh button: the collector fetches on its own
+  schedule and the frontend simply reads whatever the cache or snapshot currently holds.
 - **API quota** shows how many requests are left, read from the `X-RateLimit-*` headers of the last
   real call and stored in `apps/api/.cache/usage.json`. It costs nothing to check, since asking the
   API how many requests remain would itself spend one.

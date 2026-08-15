@@ -1,7 +1,7 @@
 # web
 
-Static frontend: a scatter plot of the Artificial Analysis model dataset with the first four Pareto
-fronts drawn as tiers — gold, silver, bronze, chocolate.
+Static frontend: a scatter plot of the Artificial Analysis model dataset with the first three
+Pareto fronts drawn as tiers — gold, silver, bronze.
 
 Plain HTML, CSS and ES modules. No build step, no dependencies, no framework.
 
@@ -44,17 +44,17 @@ If Terraform had to use a non-default public bucket name, update the public `dat
 - **Axes.** Any two of intelligence, price per token, cost per task, speed and latency, defaulting
   to cost per task against intelligence. Each metric knows whether higher or lower is better, so
   the Pareto direction follows the selection.
-- **Tiers.** `paretoFronts` peels four fronts by non-dominated sorting. Neighbouring models on each
+- **Tiers.** `paretoFronts` peels three fronts by non-dominated sorting. Neighbouring models on each
   front are connected directly in metric order.
 - **Highlight.** Typing in the search box rings every model whose name or creator contains the text
   and recedes the rest. It highlights rather than filters, so the fronts do not move under you.
 - **Creators.** A checkbox list, so arbitrary combinations are possible. This one *does* filter, and
   the fronts are recomputed for the subset. No selection means every creator.
-- **Tiers.** A checkbox list over the four fronts plus "Others (dominated)". This one only decides
+- **Tiers.** A checkbox list over the three fronts plus "Others (dominated)". This one only decides
   what is *drawn* — the fronts are never recomputed, because peeling gold away would promote silver
   into its place and the tiers would stop meaning anything. Hidden tiers do leave the axes, so the
   plot rescales to what is left, and the legend keeps showing their real counts struck through.
-- **Table view.** The same four fronts as a table, so no value is reachable only by hovering.
+- **Table view.** The same three fronts as a table, so no value is reachable only by hovering.
 
 The chart is drawn at the container's pixel size and redrawn when that box changes, so it fills a
 wide display instead of topping out at a fixed width. Tick density follows the size.
@@ -72,7 +72,7 @@ wide display instead of topping out at a fixed width. Tick density follows the s
 
 ## Colours
 
-The tiers follow the medal metaphor: gold, silver, bronze, chocolate. Each mode has its own steps,
+The tiers follow the medal metaphor: gold, silver, bronze. Each mode has its own steps,
 picked against its own surface.
 
 | Tier | Light | Dark |
@@ -80,14 +80,13 @@ picked against its own surface.
 | Gold | `#cfa81c` | `#e8c33a` |
 | Silver | `#9aa3b0` | `#c3cbd6` |
 | Bronze | `#a05f0e` | `#cf8720` |
-| Chocolate | `#57321a` | `#8a4f2c` |
 
-The steps were tuned until every pair is separable: worst pair ΔE 17.1 light / 15.7 dark under
-normal vision, 17.0 / 14.5 under simulated protanopia and deuteranopia (OKLab ×100, floors 15 and
-8). If you change a tier colour, re-check that.
+The steps were tuned until every pair is separable. Measured across the original four-tier ramp:
+worst pair ΔE 17.1 light / 15.7 dark under normal vision, 17.0 / 14.5 under simulated protanopia
+and deuteranopia (OKLab ×100, floors 15 and 8). Dropping chocolate only removes pairs, so those
+figures are a floor rather than a current reading. If you change a tier colour, re-check them.
 
-Two checks the metaphor cannot pass, by construction: silver is a low-chroma grey, and chocolate is
-darker than a categorical palette's lightness band allows. Both are accepted deliberately, and
-neither leaves colour carrying meaning alone — the legend is always present, the tier is named in
-the tooltip, and the table view lists every model by tier. The dominated cloud is kept lighter and
-more transparent than silver so the two never read as the same thing.
+One check the metaphor cannot pass, by construction: silver is a low-chroma grey. It is accepted
+deliberately, and it does not leave colour carrying meaning alone — the legend is always present,
+the tier is named in the tooltip, and the table view lists every model by tier. The dominated cloud
+is kept lighter and more transparent than silver so the two never read as the same thing.

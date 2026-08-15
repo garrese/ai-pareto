@@ -98,21 +98,44 @@ in English unless the user explicitly requests a localized variant.
 
 ## Charts
 
-Tier colours are literal medals (gold, silver, bronze, chocolate) at the user's explicit request,
-after an ordinal single-hue ramp was tried first. Two checks in
-`validate_palette.js` cannot pass with real medals and are accepted knowingly: silver is
-below the chroma floor (it *is* grey) and chocolate is below the lightness band (it *is* dark).
-What was tuned until it passed, and what must stay passing, is **pair separability** —
-`--pairs all`, worst pair ΔE 17.1 light / 15.7 dark normal-vision (floor 15) and 17.0 / 14.5 under
-protan/deutan (floor 8). Re-run for light `#fcfcfb` and dark `#1a1a19` if you touch a tier colour.
+Tier colours are literal medals (gold, silver, bronze) at the user's explicit request, after an
+ordinal single-hue ramp was tried first. A fourth tier, chocolate, was dropped on 2026-08-15: the
+user found the extra front added noise, not signal. The frontend now peels `TIERS.length` fronts —
+do not reintroduce a fourth without being asked. (The collector still stores four in its snapshots;
+that is a separate decision.)
 
-The mitigations that make the two accepted failures safe are load-bearing: the legend is always
-rendered, the tooltip names the tier in words, and the table view lists every model by tier. Do not
-remove them. The dominated cloud (`--rest-mark`) is deliberately lighter and more transparent than
-silver in light mode, and darker in dark mode — "recessive" flips meaning with the surface.
+One check in `validate_palette.js` cannot pass with real medals and is accepted knowingly: silver is
+below the chroma floor (it *is* grey). What was tuned until it passed, and what must stay passing,
+is **pair separability** — `--pairs all`, worst pair ΔE 17.1 light / 15.7 dark normal-vision
+(floor 15) and 17.0 / 14.5 under protan/deutan (floor 8), measured while chocolate was still in the
+ramp. Re-run for light `#fcfcfb` and dark `#1a1a19` if you touch a tier colour.
+
+The mitigations that make the accepted failure safe are load-bearing: the legend is always rendered,
+the tooltip names the tier in words, and the table view lists every model by tier — as the ordinal
+`1º`/`2º`/`3º`, with the medal name on the cell's `title`, because the word is far wider than the
+column ever needs to be. Do not remove them. The dominated cloud (`--rest-mark`) is deliberately
+lighter and more transparent than silver in light mode, and darker in dark mode — "recessive" flips
+meaning with the surface.
 
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
+
+## Small screens
+
+Phone layout is a running priority (2026-08-15): the plot and the table get the pixels, everything
+else gives them up.
+
+- The chart's **left gutter is measured, not fixed** — `chart.js` builds the Y scale first, asks it
+  what its tick labels will say, and sizes the gutter to the widest one. Do not put a constant back
+  in `COMPACT_PAD.left`; it reserved room for digits that are usually never drawn.
+- The **filters fold away** behind a "Show filters" button below 720px and on short landscape
+  screens, so a phone opens on data. The **chart/table switch stays outside the fold** — it is the
+  one control that must always be one tap away.
+- **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
+  Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
+  title, because a spelled-out heading widens a column past anything its values ever hold.
+- Model names must stay wrappable. Their column has a `min-width` floor on phones: without it the
+  column collapses to its longest word and rows grow six lines tall.
 
 The two pickers filter at different layers, deliberately: **creators** filter the input, so the
 fronts are recomputed for the subset; **tiers** filter only what is drawn, because recomputing
