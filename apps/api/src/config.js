@@ -55,8 +55,11 @@ function toPositiveNumber(value, key) {
   return n;
 }
 
-export function loadConfig() {
+export function loadConfig(environment = process.env) {
+  // `PORT` wins over the file: it is how every host and dev harness hands a
+  // port over, and a second instance has to be able to take a different one.
   const props = { ...DEFAULTS, ...readConfigFile() };
+  if (environment.PORT) props['server.port'] = environment.PORT;
 
   const apiKey = props['aa.api.key'];
   if (!apiKey) {
