@@ -148,9 +148,10 @@ be most of the plot, so side labels are placed inwards instead.
 
 ### What gets drawn at all
 
-The plot is **the peeled fronts plus at most 30 more models** (`RUNNER_LIMIT` in `main.js`),
+The plot **opens with the peeled fronts plus at most 30 more models** (`RUNNER_LIMIT` in `main.js`),
 decided with the user on 2026-08-15. The full dominated cloud was several hundred marks that buried
-the fronts they surround, and it stretched both axes to fit outliers nobody was looking at.
+the fronts they surround, and it stretched both axes to fit outliers nobody was looking at. A model
+the user explicitly selects is additional to that initial limit and must remain drawn.
 
 The 30 are chosen by **carrying on peeling** — front 4, front 5, and so on — via `runnersUp` in
 `pareto.js`. The front that overflows the limit is thinned by spreading along the first objective,
@@ -235,10 +236,14 @@ else gives them up.
 
 ## The pickers
 
-They filter at different layers, deliberately: **creators and models** filter the input, so the
-fronts are recomputed for the subset — pick five models and you get the fronts among those five;
-**tiers** filter only what is drawn, because recomputing would promote silver into gold's place the
-moment gold is hidden. Creators and models AND together.
+They filter at different layers, deliberately: **model checks are the exact eligible set drawn**, so
+the fronts are recomputed for the subset — pick five models and all five stay visible, with fronts
+computed among those five. The initial model checks are exactly the three fronts plus the 30
+continued-peeling runners. **Creators are synchronized parent controls** for those model checks:
+checked means all eligible child models are selected, mixed means some, and unchecked means none.
+Clearing the last selected model for a creator must therefore uncheck that creator. **Tiers** filter
+only what is drawn, because recomputing would promote silver into gold's place the moment gold is
+hidden.
 
 The creator and model pickers **each carry their own search box** (2026-08-15): 58 creators and 608
 models are more than anyone scrolls. Rows are built once and hidden as you type — rebuilding 608

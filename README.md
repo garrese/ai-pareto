@@ -15,7 +15,7 @@ Rather than presenting a single, misleading "best model" ranking, the app lets p
 - Compare any two of intelligence, price per million tokens, cost per benchmark task, generation speed, and time to first token.
 - See the first three Pareto fronts as gold, silver, and bronze tiers, with the thirty models closest to joining a front kept behind them as context.
 - Search and highlight models or creators without making the frontier disappear; anything matched is drawn even when it falls outside that context set.
-- Filter by creator or by individual model — each picker has its own search — and recompute the frontier for that subset, or hide visual tiers while preserving their original meaning.
+- Select the exact visible model set directly or by creator — each picker has its own search and synchronized checks — and recompute the frontier for that set, or hide visual tiers while preserving their original meaning.
 - Switch to an accessible table view containing the same ranked model data as the chart.
 - Open a shared `?highlight=` link directly on the model mentioned in a notification.
 
