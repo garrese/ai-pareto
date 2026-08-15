@@ -560,9 +560,22 @@ async function load() {
   }
 }
 
+/**
+ * `?highlight=<model name>` pre-fills the search box, so a link from the X bot
+ * lands with the model it is about ringed in the chart and marked in the table.
+ * It highlights rather than filters, so the reader still sees the whole field.
+ */
+function applyHighlightParameter() {
+  const requested = new URLSearchParams(globalThis.location?.search ?? '').get('highlight');
+  if (!requested) return;
+  dom.search.value = requested;
+  state.query = requested;
+}
+
 fillMetricSelects();
 fillTierList();
 bindControls();
+applyHighlightParameter();
 setFiltersOpen(false);
 try {
   if (dataSourceMode() === 'snapshot') dom.usage.hidden = true;

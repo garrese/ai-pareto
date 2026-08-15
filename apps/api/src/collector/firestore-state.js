@@ -1,16 +1,9 @@
+import { MONITORED_PARETO_FRONTS } from './definitions.js';
 import { createParetoChangeEvents } from './events.js';
 
-const eventFields = (data) => ({
-  schemaVersion: data.schemaVersion,
-  eventId: data.eventId,
-  type: data.type,
-  occurredAt: data.occurredAt,
-  fromSnapshot: data.fromSnapshot,
-  toSnapshot: data.toSnapshot,
-  frontId: data.frontId,
-  addedModelIds: data.addedModelIds,
-  removedModelIds: data.removedModelIds,
-});
+/** Strips the outbox bookkeeping (status, attempts) back to the event itself. */
+const eventFields = ({ status, createdAt, publishAttempts, messageId, enqueuedAt, ...event }) =>
+  event;
 
 const frontForFirestore = (front) => ({
   ...front,
@@ -73,6 +66,8 @@ export class FirestoreCollectorState {
     rateLimit,
     manifest,
     paretoDocument,
+    models = [],
+    definitions = MONITORED_PARETO_FRONTS,
   }) {
     return this.firestore.runTransaction(async (transaction) => {
       const refreshSnapshot = await transaction.get(this.refreshRef);
@@ -99,6 +94,8 @@ export class FirestoreCollectorState {
       const events = createParetoChangeEvents({
         previous,
         current: paretoDocument,
+        models,
+        definitions,
         occurredAt: generatedAt,
       });
 

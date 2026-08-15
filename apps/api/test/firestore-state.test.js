@@ -90,19 +90,25 @@ const manifest = (snapshotId) => ({
   path: 'public/latest.json',
   body: { snapshotId },
 });
+const FRONT = 'cost-per-task-intelligence';
 const pareto = (snapshotId, tier) => ({
   snapshotId,
   fronts: [
     {
-      frontId: 'price-intelligence',
+      frontId: FRONT,
       objectives: [
-        { key: 'price', dir: 'min' },
+        { key: 'costPerTask', dir: 'min' },
         { key: 'intelligence', dir: 'max' },
       ],
       tiers: [tier],
     },
   ],
 });
+/** Change detection reads names and metrics from the dataset, not from the front. */
+const MODELS = [
+  { id: 'model-a', name: 'Model A', costPerTask: 0.5, intelligence: 50 },
+  { id: 'model-b', name: 'Model B', costPerTask: 0.3, intelligence: 60 },
+];
 
 test('Firestore state establishes a baseline and transactionally creates later outbox events', async () => {
   const firestore = new FakeFirestore();
@@ -125,10 +131,11 @@ test('Firestore state establishes a baseline and transactionally creates later o
     rateLimit: null,
     manifest: manifest('snapshot-1'),
     paretoDocument: pareto('snapshot-1', ['model-a']),
+    models: MODELS,
   });
   assert.equal(first.eventCount, 0);
   assert.deepEqual(
-    firestore.documents.get('pareto-state/price-intelligence').tiers,
+    firestore.documents.get(`pareto-state/${FRONT}`).tiers,
     [{ modelIds: ['model-a'] }],
   );
   await state.markSnapshotPublished({
@@ -154,13 +161,17 @@ test('Firestore state establishes a baseline and transactionally creates later o
     rateLimit: { limit: 100, remaining: 90 },
     manifest: manifest('snapshot-2'),
     paretoDocument: pareto('snapshot-2', ['model-a', 'model-b']),
+    models: MODELS,
   });
 
   assert.equal(second.eventCount, 1);
   const [event] = await state.listPendingEvents(10);
   assert.equal(event.fromSnapshot, 'snapshot-1');
   assert.equal(event.toSnapshot, 'snapshot-2');
-  assert.deepEqual(event.addedModelIds, ['model-b']);
+  assert.equal(event.type, 'pareto.model.moved');
+  assert.equal(event.model.name, 'Model B');
+  assert.equal(event.previousTier, null);
+  assert.deepEqual(event.model.metrics, { costPerTask: 0.3, intelligence: 60 });
 
   await state.markEventEnqueued(event.eventId, 'message-1', '2026-08-14T16:00:02.000Z');
   assert.deepEqual(await state.listPendingEvents(10), []);
@@ -192,6 +203,7 @@ test('Firestore state resumes prepared work and rejects overlapping live leases'
     rateLimit: null,
     manifest: manifest('snapshot-1'),
     paretoDocument: pareto('snapshot-1', ['model-a']),
+    models: MODELS,
   });
 
   const resumed = await state.claimExecution({

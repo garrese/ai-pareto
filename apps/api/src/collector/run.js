@@ -1,4 +1,4 @@
-import { MONITORED_PARETO_FRONTS } from './definitions.js';
+import { MONITORED_PARETO_FRONTS, TIER_COUNT } from './definitions.js';
 import { publishImmutableObjects, publishManifestObject } from './publication.js';
 import { createSnapshotArtifacts } from './snapshots.js';
 
@@ -84,6 +84,7 @@ export async function runCollector({
       fetchedAt: result.fetchedAt,
       generatedAt,
       paretoDefinitions: MONITORED_PARETO_FRONTS,
+      maxFronts: TIER_COUNT,
     });
     fetched = true;
 
@@ -97,6 +98,10 @@ export async function runCollector({
       rateLimit: result.rateLimit ?? null,
       manifest: artifacts.manifestObject,
       paretoDocument: paretoDocumentFrom(artifacts),
+      // Change detection needs names and metrics, not just the IDs the Pareto
+      // document carries — a post has to say who was displaced and by how much.
+      models: result.models,
+      definitions: MONITORED_PARETO_FRONTS,
     });
     log('INFO', 'Snapshot prepared', {
       executionId,
