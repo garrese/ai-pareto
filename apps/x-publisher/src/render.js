@@ -8,6 +8,11 @@ const EMOJI = /\p{Extended_Pictographic}/u;
 const MIN_NAME = 24;
 
 const MEDAL = ['🥇', '🥈', '🥉'];
+const FRONTIER = [
+  'the top Pareto frontier',
+  'the second Pareto frontier',
+  'the third Pareto frontier',
+];
 
 /** Twelve hex characters of the event ID: enough to identify one post of ours. */
 export const eventToken = (eventId) => eventId.slice('sha256:'.length, 19);
@@ -96,8 +101,8 @@ function moveLines(event, { nameLimit = Infinity, displacedStats = true, ownStat
   const { tier, previousTier, model, displaced, neighbour, objectives } = event;
   const name = truncate(model.name, nameLimit);
   const place = previousTier === null
-    ? `enters Pareto front ${tier + 1}`
-    : `climbs from front ${previousTier + 1} to front ${tier + 1}`;
+    ? `joins ${FRONTIER[tier]}`
+    : `moves up to ${FRONTIER[tier]}`;
 
   const lines = [`${MEDAL[tier]} ${name} ${place}`];
   if (ownStats) lines.push(statsLine(model, objectives));
