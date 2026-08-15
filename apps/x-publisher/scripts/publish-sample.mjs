@@ -109,12 +109,12 @@ async function main() {
   const properties = parseProperties(await readFile(CONFIG_URL, 'utf8').catch(() => ''));
   const site = options.site ?? properties['public.site.url'] ?? 'https://ai-pareto.web.app';
   const [event] = events;
-  const { text, marker } = renderPost(event, site);
+  const { text, marker, token } = renderPost(event, site);
 
   console.log(`\n${'─'.repeat(60)}`);
   console.log(text);
   console.log(`${'─'.repeat(60)}`);
-  console.log(`${weightedLength(text)}/280 characters · event ${event.type} · marker ${marker}`);
+  console.log(`${weightedLength(text)}/280 characters · event ${event.type} · token ${token}`);
 
   if (!options.confirm) {
     console.log('\nDry run. Nothing was sent. Add --confirm to publish this for real.');
@@ -133,7 +133,7 @@ async function main() {
   }
 
   const client = new XClient({ credentials, userId });
-  const existing = await client.findPostByMarker(marker);
+  const existing = await client.findPostByMarker({ token, textMarker: marker });
   if (existing) {
     console.log(`\nAlready published as ${existing.id}; not posting again.`);
     return;

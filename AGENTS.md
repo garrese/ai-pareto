@@ -197,8 +197,18 @@ widen any of this without being asked.
 - **Template B**, agreed after comparing four. Headline with medal, indented metrics, relation line.
   When it will not fit, detail is dropped in a fixed order — the displaced model's numbers, then the
   subject's, then names are truncated. Names are never cut while a number could go instead.
-- Posts link to `?highlight=<model name>`, which the site reads into its search box. X flat-rates
-  every URL at 23 characters, so the parameter costs nothing.
+- Posts link to `?highlight=<model name>&e=<event token>`. The site reads `highlight` into its
+  search box; `e` is how a post is later recognised as ours. X flat-rates every URL at 23
+  characters, so both parameters are free.
+- **Percent-encode parentheses.** `encodeURIComponent` leaves `()` alone and X's link parser stops
+  dead at one — verified 2026-08-15 on a live post, where the trailing `)` was cut off the link and
+  left loose in the text. Almost every model here is named "Something (high)", so this is the common
+  case. `strictEncode` in `render.js` handles it; do not replace it with `encodeURIComponent`.
+- **The event token lives in the link, not in the body.** A visible `[aa:…]` marker is noise on a
+  public account. It only reappears when no site URL is configured, because then there is nowhere to
+  hide it and a post nobody can recognise is worse. Matching therefore reads
+  `entities.urls[].expanded_url` — `text` holds only the t.co short form — which needs
+  `tweet.fields=entities` on the timeline request.
 - `apps/x-publisher/scripts/publish-sample.mjs` rehearses the whole path against the real cache and
   is a dry run unless given `--confirm`.
 

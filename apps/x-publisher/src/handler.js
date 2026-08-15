@@ -52,7 +52,10 @@ export function createPushHandler({
 
     const rendered = renderPost(event, publicSiteUrl);
     try {
-      let post = await xClient.findPostByMarker(rendered.marker);
+      let post = await xClient.findPostByMarker({
+        token: rendered.token,
+        textMarker: rendered.marker,
+      });
       const reconciled = post !== null;
       if (!post) post = await xClient.createPost(rendered.text);
 

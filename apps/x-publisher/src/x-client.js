@@ -45,12 +45,35 @@ export class XClient {
     return payload;
   }
 
-  async findPostByMarker(marker) {
+  /**
+   * Finds a post of ours by its event token.
+   *
+   * The token normally rides in the link rather than the body, so the match is
+   * made against the expanded URLs X returns in `entities` — `text` only ever
+   * holds the t.co short form. `textMarker` still matches posts written before
+   * the token moved into the link, and covers a deployment with no site URL
+   * configured, where the marker has nowhere to hide.
+   *
+   * Note this read is eventually consistent: a post made seconds ago will not
+   * be here yet. It is a backstop for the crash window, not a lock.
+   */
+  async findPostByMarker({ token = null, textMarker = null } = {}) {
+    if (!token && !textMarker) throw new Error('Finding a post needs a token or a text marker');
+
     const url = new URL(`https://api.x.com/2/users/${encodeURIComponent(this.userId)}/tweets`);
     url.searchParams.set('max_results', '10');
     url.searchParams.set('exclude', 'replies,retweets');
+    url.searchParams.set('tweet.fields', 'entities');
     const payload = await this.#request('GET', url);
-    const match = (payload?.data ?? []).find((post) => post.text?.includes(marker));
+
+    const match = (payload?.data ?? []).find(
+      (post) =>
+        (textMarker && post.text?.includes(textMarker)) ||
+        (token &&
+          (post.entities?.urls ?? []).some((entry) =>
+            entry.expanded_url?.includes(`e=${token}`),
+          )),
+    );
     return match ? { id: match.id, text: match.text } : null;
   }
 

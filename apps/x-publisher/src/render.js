@@ -9,7 +9,24 @@ const MIN_NAME = 24;
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
-export const eventMarker = (eventId) => `[aa:${eventId.slice('sha256:'.length, 19)}]`;
+/** Twelve hex characters of the event ID: enough to identify one post of ours. */
+export const eventToken = (eventId) => eventId.slice('sha256:'.length, 19);
+
+/** The visible form, used only when there is no link to hide the token inside. */
+export const eventMarker = (eventId) => `[aa:${eventToken(eventId)}]`;
+
+/**
+ * RFC 3986 percent-encoding. `encodeURIComponent` leaves `!'()*` alone, and X's
+ * link parser stops dead at a parenthesis — verified 2026-08-15 on a live post,
+ * where the trailing `)` of a model name was cut off the link and left loose in
+ * the text. Nearly every model here is named "Something (high)", so this is the
+ * common case, not an edge one.
+ */
+const strictEncode = (value) =>
+  encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 
 /** Trims to `decimals` and drops trailing zeros — the same rule the site uses. */
 const trim = (value, decimals) => String(Number(value.toFixed(decimals)));
@@ -127,8 +144,12 @@ function digestLines(event, { nameLimit = Infinity } = {}) {
  * because a wrong-looking name is worse than a missing figure.
  */
 export function renderPost(event, publicSiteUrl = null) {
-  const marker = eventMarker(event.eventId);
-  const link = highlightUrl(event, publicSiteUrl);
+  const token = eventToken(event.eventId);
+  const link = highlightUrl(event, publicSiteUrl, token);
+  // The token has to survive in something the API gives back, or a post of ours
+  // cannot be recognised as ours. Riding in the link keeps it out of the reader's
+  // way; without a link there is nowhere to hide it, so it goes back on show.
+  const marker = link ? null : eventMarker(event.eventId);
   const isDigest = event.type === 'pareto.scan.digest';
   const build = (options) =>
     [...(isDigest ? digestLines(event, options) : moveLines(event, options)), link, marker]
@@ -143,7 +164,7 @@ export function renderPost(event, publicSiteUrl = null) {
 
   for (const options of ladder) {
     const text = build(options);
-    if (weightedLength(text) <= POST_LIMIT) return { text, marker };
+    if (weightedLength(text) <= POST_LIMIT) return { text, marker, token };
   }
 
   const last = { displacedStats: false, ownStats: false };
@@ -154,7 +175,7 @@ export function renderPost(event, publicSiteUrl = null) {
   );
   for (let limit = longest - 1; limit >= MIN_NAME; limit--) {
     const text = build({ ...last, nameLimit: limit });
-    if (weightedLength(text) <= POST_LIMIT) return { text, marker };
+    if (weightedLength(text) <= POST_LIMIT) return { text, marker, token };
   }
 
   throw new Error('Rendered X post exceeds 280 characters even with names truncated');
@@ -163,11 +184,16 @@ export function renderPost(event, publicSiteUrl = null) {
 /**
  * Deep-links to the model highlighted on the site. The site reads `highlight`
  * into its search box, so the reader lands with the model ringed in the chart
- * instead of having to find it. X flat-rates URLs, so the parameter is free.
+ * instead of having to find it, and `e` carries the event token so the post can
+ * still be recognised as ours. X flat-rates every URL at 23 characters, so
+ * neither parameter costs anything.
  */
-function highlightUrl(event, publicSiteUrl) {
+function highlightUrl(event, publicSiteUrl, token) {
   if (!publicSiteUrl) return null;
   const name = event.type === 'pareto.scan.digest' ? event.headline?.model?.name : event.model?.name;
   const root = publicSiteUrl.replace(/\/+$/, '');
-  return name ? `${root}/?highlight=${encodeURIComponent(name)}` : root;
+  const query = [name ? `highlight=${strictEncode(name)}` : null, `e=${strictEncode(token)}`]
+    .filter(Boolean)
+    .join('&');
+  return `${root}/?${query}`;
 }

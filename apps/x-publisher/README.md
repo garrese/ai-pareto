@@ -33,9 +33,14 @@ the abstract.
 🥇 GPT-6 (high) enters Pareto front 1
    61.2 intelligence · $0.82/task
 Displaces Grok 4.6 (high) (60.9 · $0.8367).
-https://ai-pareto.web.app/?highlight=GPT-6%20(high)
-[aa:ddaa419a711f]
+https://ai-pareto.web.app/?highlight=GPT-6%20%28high%29&e=ddaa419a711f
 ```
+
+The link carries two things. `highlight` is read by the site into its search box, so the reader
+lands with that model ringed in the chart. `e` is the event token, which is how a post is later
+recognised as ours — it lives in the link rather than in the body, where it would be visible noise
+on a public account. Parentheses **must** stay percent-encoded: X's link parser stops at one, and
+almost every model here is named "Something (high)".
 
 `renderPost` guarantees the result fits X's 280-character budget, counting URLs at their flat 23 and
 emoji at two. When a post would overflow it sheds detail in a fixed order: the displaced model's

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { renderPost, eventMarker, weightedLength } from '../src/render.js';
+import { renderPost, eventMarker, eventToken, weightedLength } from '../src/render.js';
 
 const SITE = 'https://aipareto.dev';
 const EVENT_ID = `sha256:${'9f2c1a77b3d4e5f6'.repeat(4)}`;
@@ -55,12 +55,32 @@ test('the common case reads as the agreed template', () => {
       '🥇 GPT-6 (high) enters Pareto front 1',
       '   61.2 intelligence · $0.82/task',
       'Displaces Grok 4.6 (high) (60.9 · $0.8367).',
-      `${SITE}/?highlight=GPT-6%20(high)`,
-      marker,
+      `${SITE}/?highlight=GPT-6%20%28high%29&e=${eventToken(EVENT_ID)}`,
     ].join('\n'),
   );
-  assert.equal(marker, eventMarker(EVENT_ID));
+  // The token rides in the link, so no bracketed marker litters the body.
+  assert.equal(marker, null);
+  assert.ok(!text.includes('[aa:'));
   assert.ok(fits(text));
+});
+
+test('parentheses are percent-encoded, because X truncates a link at one', () => {
+  // Verified against a live post: the trailing ")" was cut off the link and left
+  // loose in the text. Almost every model here is named "Something (high)".
+  const { text } = renderPost(move({ model: model('Grok 4.6 (high)', 60.9, 0.8367) }), SITE);
+  const [link] = text.split('\n').filter((line) => line.startsWith('http'));
+
+  assert.ok(!link.includes('('), `an unencoded parenthesis survived: ${link}`);
+  assert.ok(!link.includes(')'), `an unencoded parenthesis survived: ${link}`);
+  assert.equal(new URL(link).searchParams.get('highlight'), 'Grok 4.6 (high)');
+});
+
+test('the event token travels in the link so a post stays identifiable', () => {
+  const { text, token } = renderPost(move(), SITE);
+  const [link] = text.split('\n').filter((line) => line.startsWith('http'));
+
+  assert.equal(new URL(link).searchParams.get('e'), token);
+  assert.equal(token, eventToken(EVENT_ID));
 });
 
 test('numbers are formatted exactly as the site formats them', () => {
@@ -120,7 +140,7 @@ test('the real worst case — the two longest live names — still fits with ful
 
   assert.ok(fits(text));
   assert.match(text, /Displaces Claude Opus 5 \(Adaptive Reasoning, Medium Effort\) \(58\.6 · \$0\.7243\)\./);
-  assert.ok(weightedLength(text) > 240, 'this case is meant to be close to the limit');
+  assert.ok(weightedLength(text) > 220, 'this case is meant to be close to the limit');
 });
 
 /**
@@ -191,9 +211,14 @@ test('a missing metric renders as a dash rather than NaN or undefined', () => {
   assert.ok(!text.includes('NaN') && !text.includes('undefined'));
 });
 
-test('without a configured site the post carries no link at all', () => {
-  const { text } = renderPost(move(), null);
+test('without a site to link to, the marker goes back on show', () => {
+  // There is nowhere to hide the token, and a post we cannot recognise later is
+  // worse than a slightly uglier one.
+  const { text, marker } = renderPost(move(), null);
+
   assert.ok(!text.includes('http'));
+  assert.equal(marker, eventMarker(EVENT_ID));
+  assert.ok(text.endsWith(marker));
   assert.equal(text.split('\n').length, 4);
 });
 
@@ -219,5 +244,5 @@ test('the digest names the batch, its shape and one model', () => {
   assert.match(text, /^📊 11 models moved up into the Pareto fronts$/m);
   assert.match(text, /🥇 4 · 🥈 5 · 🥉 2/);
   assert.match(text, /Leading the batch: GPT-6 \(high\) \(61\.2 · \$0\.82\)\./);
-  assert.match(text, /highlight=GPT-6/);
+  assert.match(text, /highlight=GPT-6%20%28high%29/);
 });
