@@ -23,7 +23,8 @@ const dom = {
   viewChart: document.getElementById('view-chart'),
   viewTable: document.getElementById('view-table'),
   usage: document.getElementById('usage'),
-  refresh: document.getElementById('refresh'),
+  controls: document.getElementById('controls'),
+  filtersToggle: document.getElementById('filters-toggle'),
   chartCard: document.getElementById('chart-card'),
   tableCard: document.getElementById('table-card'),
   chart: document.getElementById('chart'),
@@ -45,7 +46,7 @@ const state = {
   view: 'chart',
 };
 
-/** The tier picker's rows: the four fronts plus everything they dominate. */
+/** The tier picker's rows: the fronts plus everything they dominate. */
 const TIER_ROWS = [
   ...TIERS.map((tier, index) => ({ key: index, label: tier.name })),
   { key: 'rest', label: 'Others (dominated)' },
@@ -197,11 +198,14 @@ function renderTable(fronts, matches) {
       const row = document.createElement('tr');
       if (matches?.has(model.id)) row.className = 'is-match';
 
+      // The colour carries the tier; the rank is there so it never rests on
+      // colour alone, and "1º" costs a fraction of the width "Gold" does.
       const tierCell = document.createElement('td');
       const tierLabel = document.createElement('span');
       tierLabel.className = 'tier-cell';
       const text = document.createElement('span');
-      text.textContent = TIERS[index].name;
+      text.textContent = TIERS[index].rank;
+      text.title = TIERS[index].name;
       tierLabel.append(dot(tierColor(index)), text);
       tierCell.append(tierLabel);
 
@@ -209,17 +213,20 @@ function renderTable(fronts, matches) {
       nameCell.scope = 'row';
       nameCell.textContent = model.name;
 
-      const creatorCell = document.createElement('td');
-      creatorCell.textContent = model.creator ?? '—';
+      row.append(tierCell, nameCell);
 
-      row.append(tierCell, nameCell, creatorCell);
-
-      for (const key of ['intelligence', 'price', 'costPerTask', 'speed', 'ttft']) {
+      for (const key of ['intelligence', 'costPerTask', 'price', 'speed', 'ttft']) {
         const cell = document.createElement('td');
         cell.className = 'num';
         cell.textContent = Number.isFinite(model[key]) ? METRICS[key].format(model[key]) : '—';
         row.append(cell);
       }
+
+      // Creator is the widest column and the least often scanned, so it sits last.
+      const creatorCell = document.createElement('td');
+      creatorCell.className = 'creator';
+      creatorCell.textContent = model.creator ?? '—';
+      row.append(creatorCell);
 
       dom.tableBody.append(row);
     }
@@ -232,7 +239,11 @@ function render() {
     (m) => Number.isFinite(m[state.x]) && Number.isFinite(m[state.y]),
   );
 
-  state.fronts = paretoFronts(eligible, [objectiveFor(state.x), objectiveFor(state.y)], 4);
+  state.fronts = paretoFronts(
+    eligible,
+    [objectiveFor(state.x), objectiveFor(state.y)],
+    TIERS.length,
+  );
   const ranked = state.fronts.reduce((total, front) => total + front.length, 0);
   const matches = currentMatches(eligible);
 
@@ -401,6 +412,16 @@ function setView(view) {
   if (isChart) render();
 }
 
+/**
+ * Narrow screens open on the data, not on a screenful of filters. The button is
+ * hidden on wide layouts, where the controls row is always laid out anyway.
+ */
+function setFiltersOpen(open) {
+  dom.controls.classList.toggle('is-open', open);
+  dom.filtersToggle.setAttribute('aria-expanded', String(open));
+  dom.filtersToggle.textContent = open ? 'Hide filters' : 'Show filters';
+}
+
 /** X and Y must differ, otherwise every point sits on a diagonal. */
 function swapIfCollision(changed) {
   if (state.x !== state.y) return;
@@ -436,7 +457,9 @@ function bindControls() {
   dom.logScale.addEventListener('change', render);
   dom.viewChart.addEventListener('click', () => setView('chart'));
   dom.viewTable.addEventListener('click', () => setView('table'));
-  dom.refresh.addEventListener('click', () => load({ refresh: true }));
+  dom.filtersToggle.addEventListener('click', () =>
+    setFiltersOpen(!dom.controls.classList.contains('is-open')),
+  );
   dom.usage.addEventListener('click', showUsage);
 
   // Close a dropdown when clicking outside it.
@@ -516,13 +539,13 @@ async function showUsage() {
   }
 }
 
-async function load({ refresh = false } = {}) {
-  dom.refresh.disabled = true;
+/** The collector refreshes upstream on its own schedule; the page just reads it. */
+async function load() {
   // Hold the previous render at reduced opacity rather than flashing a skeleton.
   dom.chartCard.classList.add('is-loading');
 
   try {
-    const payload = await fetchModels({ refresh });
+    const payload = await fetchModels();
     state.models = payload.models;
     dom.meta.classList.remove('is-error');
     dom.meta.textContent = describe(payload);
@@ -533,7 +556,6 @@ async function load({ refresh = false } = {}) {
     dom.meta.classList.add('is-error');
     dom.meta.textContent = err.message;
   } finally {
-    dom.refresh.disabled = false;
     dom.chartCard.classList.remove('is-loading');
   }
 }
@@ -541,6 +563,7 @@ async function load({ refresh = false } = {}) {
 fillMetricSelects();
 fillTierList();
 bindControls();
+setFiltersOpen(false);
 try {
   if (dataSourceMode() === 'snapshot') dom.usage.hidden = true;
 } catch {

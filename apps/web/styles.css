@@ -1,6 +1,6 @@
-/* Tier colours follow the medal metaphor: gold, silver, bronze, chocolate.
-   Each mode has its own steps, validated against its own surface — see
-   apps/web/README.md for what passes and what the metaphor costs. */
+/* Tier colours follow the medal metaphor: gold, silver, bronze. Each mode has
+   its own steps, validated against its own surface — see apps/web/README.md for
+   what passes and what the metaphor costs. */
 
 :root {
   color-scheme: light;
@@ -18,7 +18,6 @@
   --tier-0: #cfa81c; /* gold */
   --tier-1: #9aa3b0; /* silver */
   --tier-2: #a05f0e; /* bronze */
-  --tier-3: #57321a; /* chocolate */
 
   /* Deliberately lighter and more transparent than silver, so the dominated
      cloud never reads as a tier. */
@@ -43,7 +42,6 @@
     --tier-0: #e8c33a;
     --tier-1: #c3cbd6;
     --tier-2: #cf8720;
-    --tier-3: #8a4f2c;
 
     /* On a dark surface "recessive" means darker — silver is the light one here. */
     --rest-mark: #4c4c46;
@@ -67,7 +65,6 @@
   --tier-0: #e8c33a;
   --tier-1: #c3cbd6;
   --tier-2: #cf8720;
-  --tier-3: #8a4f2c;
 
   --rest-mark: #4c4c46;
   --rest-opacity: 0.75;
@@ -125,6 +122,20 @@ body {
   border-radius: 8px;
 }
 
+/* ── Toolbar: what stays visible when the filters are folded away ────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 0;
+}
+
+/* Wide layouts lay the filters out anyway, so the button has nothing to do. */
+.filters-toggle {
+  display: none;
+}
+
 /* ── Controls: one row above everything they scope ───────────────────────── */
 
 .controls {
@@ -132,7 +143,7 @@ body {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 16px;
-  margin: 24px 0 16px;
+  margin: 12px 0 16px;
   padding: 16px;
   background: var(--surface-1);
   border: 1px solid var(--hairline);
@@ -186,7 +197,7 @@ body {
 }
 
 .toggle,
-.refresh,
+.filters-toggle,
 #usage,
 .picker-actions button {
   padding: 7px 14px;
@@ -205,13 +216,12 @@ body {
   box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
 }
 
-.refresh,
+.filters-toggle,
 #usage {
   color: var(--text-primary);
   border: 1px solid var(--hairline);
 }
 
-.refresh:disabled,
 #usage:disabled {
   opacity: 0.5;
   cursor: default;
@@ -432,12 +442,10 @@ body {
 .tier-0 circle { fill: var(--tier-0); }
 .tier-1 circle { fill: var(--tier-1); }
 .tier-2 circle { fill: var(--tier-2); }
-.tier-3 circle { fill: var(--tier-3); }
 
 .front-line.tier-0 { stroke: var(--tier-0); }
 .front-line.tier-1 { stroke: var(--tier-1); }
 .front-line.tier-2 { stroke: var(--tier-2); }
-.front-line.tier-3 { stroke: var(--tier-3); }
 
 /* Search emphasis: matches keep their tier colour and gain an ink ring;
    everything else recedes. Identity is never carried by the ring alone —
@@ -557,6 +565,20 @@ body {
   font-weight: 600;
 }
 
+/* Only the headings resist wrapping — a wrapped heading costs two rows of
+   height for every row of the table. Model names must stay wrappable, or the
+   column's minimum width is the longest name and it pushes the numbers off a
+   narrow screen. */
+.data-table thead th {
+  white-space: nowrap;
+}
+
+/* Abbreviated headings should not look like a spelling mistake. */
+.data-table abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
 .data-table tbody th {
   color: var(--text-primary);
   font-weight: 500;
@@ -570,6 +592,7 @@ body {
 .data-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .data-table .swatch {
@@ -582,8 +605,9 @@ body {
 .tier-cell {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .page-footer {
@@ -596,10 +620,19 @@ body {
   color: inherit;
 }
 
+.footer-links {
+  margin-bottom: 0;
+}
+
+.footer-links a {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .page {
     max-width: 100%;
-    padding: 14px 8px 32px;
+    padding: 14px 6px 32px;
   }
 
   .page-header h1 {
@@ -616,14 +649,38 @@ body {
     margin-top: 6px;
   }
 
+  .toolbar {
+    margin-top: 12px;
+    gap: 6px;
+  }
+
+  .toolbar .control-view {
+    flex: 1;
+  }
+
+  .toolbar .control-view .toggle {
+    flex: 1;
+  }
+
+  .filters-toggle {
+    display: block;
+    flex: 1;
+  }
+
+  /* Folded away by default: a phone should open on the data, not on the
+     filters. `is-open` is set by the toggle above. */
   .controls {
-    display: grid;
+    display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
     gap: 10px 8px;
-    margin: 14px 0 10px;
+    margin: 8px 0 10px;
     padding: 10px;
     border-radius: 8px;
+  }
+
+  .controls.is-open {
+    display: grid;
   }
 
   .control {
@@ -658,11 +715,12 @@ body {
   }
 
   .picker-panel {
-    width: min(280px, calc(100vw - 38px));
+    width: min(280px, calc(100vw - 34px));
   }
 
+  /* Every pixel here is a pixel the plot does not get. */
   .card {
-    padding: 8px;
+    padding: 6px 4px;
     border-radius: 8px;
   }
 
@@ -692,8 +750,55 @@ body {
     font-size: 0.7rem;
   }
 
+  /* The table earns its width back from the gaps between fields. No minimum
+     width either — the leading columns are the ones worth reading, and they
+     land on screen instead of behind a scroll. */
+  .data-table {
+    min-width: 0;
+    font-size: 0.78rem;
+  }
+
+  .data-table caption {
+    margin-bottom: 8px;
+    font-size: 0.74rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 5px 3px;
+  }
+
+  .data-table th:first-child,
+  .data-table td:first-child {
+    padding-left: 1px;
+  }
+
+  .data-table th:last-child,
+  .data-table td:last-child {
+    padding-right: 1px;
+  }
+
+  /* Left to itself the model column collapses to its narrowest word and every
+     row grows six lines tall. A floor keeps rows short; the columns past
+     cost/task are the ones that pay for it with a little sideways scroll. */
+  .data-table tbody th {
+    min-width: 10em;
+  }
+
+  .tier-cell {
+    gap: 4px;
+  }
+
+  .data-table .creator {
+    color: var(--text-secondary);
+  }
+
   .page-footer {
     margin-top: 16px;
+  }
+
+  .footer-links a {
+    white-space: normal;
   }
 }
 
@@ -718,13 +823,27 @@ body {
     margin-top: 3px;
   }
 
+  .toolbar {
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .filters-toggle {
+    display: block;
+  }
+
+  /* Vertical space is the scarce one here, so the filters fold away as well. */
   .controls {
-    display: grid;
+    display: none;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: end;
     gap: 6px;
     margin: 8px 0;
     padding: 8px;
+  }
+
+  .controls.is-open {
+    display: grid;
   }
 
   .control,
@@ -758,7 +877,7 @@ body {
   }
 
   .card {
-    padding: 8px;
+    padding: 6px 4px;
   }
 
   .legend {
@@ -769,6 +888,16 @@ body {
 
   .chart {
     height: 300px;
+  }
+
+  .data-table {
+    min-width: 0;
+    font-size: 0.8rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 5px 6px;
   }
 
   .page-footer {

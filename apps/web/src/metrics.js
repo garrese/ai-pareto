@@ -50,12 +50,15 @@ export const METRICS = {
   },
 };
 
-/** Tier names come straight from the medal metaphor; the ramp is gold → chocolate. */
+/**
+ * Tier names come straight from the medal metaphor; the ramp is gold → bronze.
+ * A fourth front was tried and dropped — it added noise without adding signal.
+ * `rank` is the compact form the table uses, where a word would widen the column.
+ */
 export const TIERS = [
-  { name: 'Gold', description: 'Pareto front 1' },
-  { name: 'Silver', description: 'Pareto front 2' },
-  { name: 'Bronze', description: 'Pareto front 3' },
-  { name: 'Chocolate', description: 'Pareto front 4' },
+  { name: 'Gold', rank: '1º', description: 'Pareto front 1' },
+  { name: 'Silver', rank: '2º', description: 'Pareto front 2' },
+  { name: 'Bronze', rank: '3º', description: 'Pareto front 3' },
 ];
 
 export const objectiveFor = (metricKey) => ({

@@ -11,14 +11,34 @@
       <header class="page-header">
         <h1>Language model Pareto tiers</h1>
         <p class="subtitle">
-          The first four Pareto fronts over Artificial Analysis text-model data. Each front is the
-          set of models nothing else beats on both axes at once; peel it away and the next tier
-          surfaces.
+          The first three Pareto fronts over Artificial Analysis text-model data. Each front is the
+          set of models nothing else beats on both axes at once.
         </p>
         <p class="meta" id="meta" role="status">Loading…</p>
       </header>
 
-      <div class="controls" role="group" aria-label="Chart options">
+      <!-- The view switch stays outside the collapsible filters: on a phone it is
+           the one control that must always be one tap away. -->
+      <div class="toolbar">
+        <div class="control control-view" role="group" aria-label="View">
+          <button type="button" id="view-chart" class="toggle is-active" aria-pressed="true">
+            Chart
+          </button>
+          <button type="button" id="view-table" class="toggle" aria-pressed="false">Table</button>
+        </div>
+
+        <button
+          type="button"
+          id="filters-toggle"
+          class="filters-toggle"
+          aria-expanded="false"
+          aria-controls="controls"
+        >
+          Show filters
+        </button>
+      </div>
+
+      <div class="controls" id="controls" role="group" aria-label="Chart options">
         <label class="control">
           <span>X axis</span>
           <select id="x-metric"></select>
@@ -72,16 +92,8 @@
           <span>Logarithmic axes</span>
         </label>
 
-        <div class="control control-view" role="group" aria-label="View">
-          <button type="button" id="view-chart" class="toggle is-active" aria-pressed="true">
-            Chart
-          </button>
-          <button type="button" id="view-table" class="toggle" aria-pressed="false">Table</button>
-        </div>
-
         <div class="control control-actions">
           <button type="button" id="usage">API quota</button>
-          <button type="button" id="refresh" class="refresh">Refresh data</button>
         </div>
       </div>
 
@@ -96,18 +108,27 @@
       <section class="card" id="table-card" hidden>
         <table class="data-table" id="table">
           <caption>
-            Models on the first four Pareto fronts for the selected axes.
+            Models on the first three Pareto fronts for the selected axes.
           </caption>
+          <!-- Headings are abbreviated because the values are short: a spelled-out
+               "Intelligence" widens the column past anything it ever holds. The
+               full term stays available through the abbreviation title. -->
           <thead>
             <tr>
               <th scope="col">Tier</th>
               <th scope="col">Model</th>
-              <th scope="col">Creator</th>
-              <th scope="col" class="num">Intelligence</th>
-              <th scope="col" class="num">Price / 1M</th>
-              <th scope="col" class="num">Cost / task</th>
+              <th scope="col" class="num">
+                <abbr title="Artificial Analysis Intelligence Index">Intel</abbr>
+              </th>
+              <th scope="col" class="num">
+                <abbr title="Cost per Intelligence Index task">$/task</abbr>
+              </th>
+              <th scope="col" class="num">
+                <abbr title="Price per 1M tokens, blended 3:1">$/1M</abbr>
+              </th>
               <th scope="col" class="num">Speed</th>
-              <th scope="col" class="num">Latency</th>
+              <th scope="col" class="num"><abbr title="Latency, time to first token">Lat</abbr></th>
+              <th scope="col">Creator</th>
             </tr>
           </thead>
           <tbody id="table-body"></tbody>
@@ -124,6 +145,11 @@
           spent per task running the Intelligence Index, so it counts verbosity too; a chatty
           reasoning model can be cheap per token and expensive per task. Models are only plotted on
           axes they have measurements for.
+        </p>
+        <p class="footer-links">
+          <a href="https://x.com/AIParetoRadar" rel="noreferrer noopener">@AIParetoRadar on X</a>
+          — the bot that posts when the Pareto front changes.
+          <a href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener">Source on GitHub</a>.
         </p>
       </footer>
     </main>

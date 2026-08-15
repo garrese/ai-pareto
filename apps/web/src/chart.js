@@ -5,8 +5,15 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const COMPACT_BREAKPOINT = 520;
 const MIN_COMPACT_WIDTH = 260;
 const MIN_WIDE_WIDTH = 560;
-const COMPACT_PAD = { top: 10, right: 10, bottom: 30, left: 52 };
-const WIDE_PAD = { top: 12, right: 20, bottom: 34, left: 64 };
+
+// `left` is not listed: the gutter is measured from the widest Y tick label the
+// current metric actually produces, so a phone does not reserve room for digits
+// that are never drawn. Everything else is fixed.
+const COMPACT_PAD = { top: 8, right: 8, bottom: 26 };
+const WIDE_PAD = { top: 12, right: 20, bottom: 34 };
+
+/** Tick labels are 11px tabular figures, so every glyph is the same width. */
+const TICK_CHAR_WIDTH = 6.3;
 
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
@@ -137,11 +144,30 @@ export function renderChart({
   const width = Math.max(minimumWidth, Math.floor(viewportBox.width));
   const height = Math.max(240, Math.floor(viewportBox.height));
   const pad = compact ? COMPACT_PAD : WIDE_PAD;
+  const plotTop = pad.top;
+  const plotHeight = height - pad.top - pad.bottom;
+
+  // The vertical scale is independent of the left gutter, so it can be built
+  // first and asked what its labels will say — which is what sets the gutter.
+  const y = makeScale({
+    values: plotted.map((m) => m[yMetric.key]),
+    type: yMetric.scale,
+    range: [plotTop + plotHeight, plotTop],
+  });
+  const yTicks = y.ticks(Math.max(4, Math.round(plotHeight / 60)));
+
+  const labelGap = compact ? 4 : 8;
+  // A degenerate domain can yield no ticks at all; the axis still needs a gutter.
+  const widestLabel = yTicks.length
+    ? Math.max(...yTicks.map((tick) => yMetric.format(tick).length))
+    : 4;
+  const left = Math.ceil(widestLabel * TICK_CHAR_WIDTH) + labelGap + 1;
+
   const plot = {
-    x: pad.left,
-    y: pad.top,
-    width: width - pad.left - pad.right,
-    height: height - pad.top - pad.bottom,
+    x: left,
+    y: plotTop,
+    width: width - left - pad.right,
+    height: plotHeight,
   };
 
   const x = makeScale({
@@ -149,15 +175,9 @@ export function renderChart({
     type: xMetric.scale,
     range: [plot.x, plot.x + plot.width],
   });
-  const y = makeScale({
-    values: plotted.map((m) => m[yMetric.key]),
-    type: yMetric.scale,
-    range: [plot.y + plot.height, plot.y],
-  });
 
-  // Roughly one label per 110px horizontally, one per 60px vertically.
+  // Roughly one label per 110px horizontally.
   const xTicks = x.ticks(Math.max(compact ? 3 : 4, Math.round(plot.width / 110)));
-  const yTicks = y.ticks(Math.max(4, Math.round(plot.height / 60)));
 
   const svg = el('svg', {
     viewBox: `0 0 ${width} ${height}`,
@@ -167,7 +187,7 @@ export function renderChart({
     'aria-label':
       `Scatter plot of ${plotted.length} language models, ` +
       `${xMetric.axisLabel} against ${yMetric.axisLabel}, ` +
-      `with the first four Pareto fronts highlighted. A table view lists the same data.`,
+      `with the first ${fronts.length} Pareto fronts highlighted. A table view lists the same data.`,
   });
   if (matches) svg.classList.add('is-searching');
 
@@ -199,14 +219,14 @@ export function renderChart({
   for (const tick of xTicks) {
     const label = el('text', {
       x: x.map(tick),
-      y: plot.y + plot.height + 20,
+      y: plot.y + plot.height + (compact ? 17 : 20),
       'text-anchor': 'middle',
     });
     label.textContent = xMetric.format(tick);
     tickLabels.append(label);
   }
   for (const tick of yTicks) {
-    const label = el('text', { x: plot.x - 10, y: y.map(tick) + 4, 'text-anchor': 'end' });
+    const label = el('text', { x: plot.x - labelGap, y: y.map(tick) + 4, 'text-anchor': 'end' });
     label.textContent = yMetric.format(tick);
     tickLabels.append(label);
   }
