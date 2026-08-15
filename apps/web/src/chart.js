@@ -20,9 +20,26 @@ const LABEL_CHAR_WIDTH = 5.9;
 const LABEL_HEIGHT = 13;
 /** Keeps neighbouring labels from touching, and the leader lines apart. */
 const LABEL_GAP = 3;
+
+/**
+ * What a candidate position costs, in arbitrary units of clutter. Zero is a
+ * clean slot and placement stops looking the moment it finds one.
+ *
+ * The front lines dominate the scale on purpose: a name laid across a frontier
+ * hides the one thing the chart is drawing, and it reads as if the curve itself
+ * were annotated. A leader crossing one is the same mistake in miniature. Marks
+ * are cheaper — the label's halo keeps it readable over them — but a ranked
+ * mark is a datum someone came to look at, where the dominated cloud is texture.
+ */
+const CROSS_FRONT_COST = 10;
+const CROSS_FRONT_LEADER_COST = 4;
+const COVER_RANKED_COST = 3;
+const COVER_CLOUD_COST = 1;
 /**
  * Placement is tried in this order, nearest ring first, so a label lands as
- * close to its mark as the crowd allows. `dx`/`dy` are a unit direction.
+ * close to its mark as the crowd allows and in the tidiest direction that is
+ * free. `dx`/`dy` are a unit direction; the halves of the compass come last
+ * because a leader at 22.5° looks incidental next to one straight up.
  */
 const LABEL_DIRECTIONS = [
   { dx: 0, dy: -1, anchor: 'middle' },
@@ -33,10 +50,20 @@ const LABEL_DIRECTIONS = [
   { dx: -0.72, dy: -0.72, anchor: 'end' },
   { dx: 0.72, dy: 0.72, anchor: 'start' },
   { dx: -0.72, dy: 0.72, anchor: 'end' },
+  { dx: 0.38, dy: -0.92, anchor: 'start' },
+  { dx: -0.38, dy: -0.92, anchor: 'end' },
+  { dx: 0.92, dy: -0.38, anchor: 'start' },
+  { dx: -0.92, dy: -0.38, anchor: 'end' },
+  { dx: 0.38, dy: 0.92, anchor: 'start' },
+  { dx: -0.38, dy: 0.92, anchor: 'end' },
+  { dx: 0.92, dy: 0.38, anchor: 'start' },
+  { dx: -0.92, dy: 0.38, anchor: 'end' },
 ];
 /**
- * The outermost ring earns its long leader: without it the three longest names
- * in the crowded corner of the default view go unlabelled.
+ * The outermost ring earns its long leader: without it the longest names in the
+ * crowded corner of the default view go unlabelled. A seventh ring at 104px was
+ * tried and rejected — it recovered one more name at 1280px and stretched the
+ * worst leader from 66px to 89px, which reads as a caption for nothing.
  */
 const LABEL_RINGS = [18, 28, 40, 56, 78];
 const COMPACT_LABEL_RINGS = [15, 23, 33, 46, 62];
@@ -108,6 +135,52 @@ function logTicks(lo, hi, target = 7) {
 
 const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const covers = (box, point) =>
+  point.px > box.x0 && point.px < box.x1 && point.py > box.y0 && point.py < box.y1;
+
+/**
+ * Liang–Barsky: does any part of the segment fall inside the axis-aligned box?
+ * Clips the parametric segment against each of the four slabs in turn and gives
+ * up as soon as the surviving interval is empty.
+ */
+function segmentHitsBox(segment, box) {
+  const dx = segment.x2 - segment.x1;
+  const dy = segment.y2 - segment.y1;
+  let enter = 0;
+  let exit = 1;
+
+  for (const [edge, distance] of [
+    [-dx, segment.x1 - box.x0],
+    [dx, box.x1 - segment.x1],
+    [-dy, segment.y1 - box.y0],
+    [dy, box.y1 - segment.y1],
+  ]) {
+    if (edge === 0) {
+      if (distance < 0) return false; // Parallel to this slab and outside it.
+      continue;
+    }
+    const t = distance / edge;
+    if (edge < 0) {
+      if (t > exit) return false;
+      if (t > enter) enter = t;
+    } else {
+      if (t < enter) return false;
+      if (t < exit) exit = t;
+    }
+  }
+  return true;
+}
+
+const side = (a, b, p) => Math.sign((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x));
+
+/** True only for a proper crossing — segments that merely touch end to end do not count. */
+function segmentsCross(a, b) {
+  const p = { x: a.x1, y: a.y1 };
+  const q = { x: a.x2, y: a.y2 };
+  const r = { x: b.x1, y: b.y1 };
+  const s = { x: b.x2, y: b.y2 };
+  return side(p, q, r) * side(p, q, s) < 0 && side(r, s, p) * side(r, s, q) < 0;
+}
 
 /** The box a label would occupy if placed in `direction` at `ring` pixels out. */
 function labelBox(target, direction, ring, width) {
@@ -126,27 +199,50 @@ const padded = (box) => ({
 });
 
 /**
+ * The hairline from a mark to its label: it runs to the nearest point of the
+ * box, so it reads as a pointer and never crosses the text. Null when the label
+ * is close enough that a pointer would be a smudge rather than a line.
+ */
+function leaderFor(target, box) {
+  const ax = clamp(target.px, box.x0, box.x1);
+  const ay = clamp(target.py, box.y0, box.y1);
+  const length = Math.hypot(ax - target.px, ay - target.py);
+  if (length <= 10) return null;
+  const ux = (ax - target.px) / length;
+  const uy = (ay - target.py) / length;
+  return {
+    x1: target.px + ux * 7,
+    y1: target.py + uy * 7,
+    x2: target.px + ux * (length - 2),
+    y2: target.py + uy * (length - 2),
+  };
+}
+
+/**
  * Names marks the way Artificial Analysis does: the label sits clear of its dot
  * with a hairline pointing back at it, rather than on top of it.
  *
  * Placement is greedy — targets are served in the order given, and each takes
- * the nearest free slot. Two rules decide "free": a label may never overlap a
- * label already placed or leave the plot (hard, and a target with no such slot
- * simply goes unnamed — a wrong name is worse than no name), and it should not
- * cover other marks (soft, since the halo keeps it legible either way).
+ * the cheapest slot on the nearest ring that has one. Two rules are absolute: a
+ * label may never overlap a label already placed, and it may never leave the
+ * plot. A target with no such slot goes unnamed, because a name in the wrong
+ * place is worse than no name. Everything else is priced rather than forbidden,
+ * so a crowded chart degrades instead of emptying out — see the cost constants.
  *
  * @param {object} options
  * @param {SVGElement} options.svg   must already be in the document: widths are measured
  * @param {any[]} options.targets    positions to name, most important first
  * @param {any[]} options.obstacles  every plotted position, labelled or not
+ * @param {any[]} options.segments   the drawn front lines, in chart coordinates
  */
-function drawLabels({ svg, targets, obstacles, plot, compact }) {
+function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
   if (targets.length === 0) return;
 
   const group = el('g', { class: 'mark-label' });
   svg.append(group);
 
   const rings = compact ? COMPACT_LABEL_RINGS : LABEL_RINGS;
+  const reach = rings[rings.length - 1];
   const placed = [];
 
   for (const target of targets) {
@@ -158,9 +254,17 @@ function drawLabels({ svg, targets, obstacles, plot, compact }) {
     const measured = text.getComputedTextLength?.() ?? 0;
     const width = measured || target.model.name.length * LABEL_CHAR_WIDTH;
 
-    // Only marks that could plausibly fall under this label are worth testing.
-    const near = obstacles.filter(
-      (p) => Math.abs(p.px - target.px) < 90 && Math.abs(p.py - target.py) < 60,
+    // Only what could plausibly fall under this label is worth testing.
+    const span = width + reach;
+    const nearMarks = obstacles.filter(
+      (p) => Math.abs(p.px - target.px) < span && Math.abs(p.py - target.py) < reach + LABEL_HEIGHT,
+    );
+    const nearLines = segments.filter(
+      (s) =>
+        Math.min(s.x1, s.x2) < target.px + span &&
+        Math.max(s.x1, s.x2) > target.px - span &&
+        Math.min(s.y1, s.y2) < target.py + reach + LABEL_HEIGHT &&
+        Math.max(s.y1, s.y2) > target.py - reach - LABEL_HEIGHT,
     );
 
     let best = null;
@@ -172,16 +276,20 @@ function drawLabels({ svg, targets, obstacles, plot, compact }) {
         const grown = padded(box);
         if (placed.some((other) => overlaps(other, grown))) continue;
 
-        const covered = near.filter(
-          (p) => p.px > grown.x0 && p.px < grown.x1 && p.py > grown.y0 && p.py < grown.y1,
-        ).length;
-        if (covered === 0) {
-          best = { direction, box, grown };
-          break;
+        const leader = leaderFor(target, box);
+        let cost = 0;
+        for (const p of nearMarks) {
+          if (covers(grown, p)) cost += p.ranked ? COVER_RANKED_COST : COVER_CLOUD_COST;
         }
-        if (!best || covered < best.covered) best = { direction, box, grown, covered };
+        for (const line of nearLines) {
+          if (segmentHitsBox(line, box)) cost += CROSS_FRONT_COST;
+          else if (leader && segmentsCross(line, leader)) cost += CROSS_FRONT_LEADER_COST;
+        }
+
+        if (!best || cost < best.cost) best = { direction, box, grown, leader, cost };
+        if (cost === 0) break;
       }
-      if (best && best.covered === undefined) break;
+      if (best?.cost === 0) break;
     }
 
     if (!best) {
@@ -195,24 +303,9 @@ function drawLabels({ svg, targets, obstacles, plot, compact }) {
     text.setAttribute('y', best.box.cy + 4);
     text.setAttribute('text-anchor', best.direction.anchor);
 
-    // The leader runs from the edge of the mark to the nearest point of the
-    // box, so it reads as a pointer and never crosses the text.
-    const ax = clamp(target.px, best.box.x0, best.box.x1);
-    const ay = clamp(target.py, best.box.y0, best.box.y1);
-    const length = Math.hypot(ax - target.px, ay - target.py);
-    if (length > 10) {
-      const ux = (ax - target.px) / length;
-      const uy = (ay - target.py) / length;
-      group.insertBefore(
-        el('line', {
-          x1: target.px + ux * 7,
-          y1: target.py + uy * 7,
-          x2: target.px + ux * (length - 2),
-          y2: target.py + uy * (length - 2),
-        }),
-        group.firstChild,
-      );
-    }
+    // Leaders go in front of the group so every label paints over them: the
+    // halo has to cut the line where it meets the text.
+    if (best.leader) group.insertBefore(el('line', best.leader), group.firstChild);
   }
 }
 
@@ -400,12 +493,25 @@ export function renderChart({
   const xObjective = { value: (m) => m[xMetric.key], dir: xMetric.dir };
   const yObjective = { value: (m) => m[yMetric.key], dir: yMetric.dir };
 
+  // Kept in chart coordinates as well as drawn: label placement is priced
+  // partly on whether a name would be laid across one of these.
+  const frontSegments = [];
+
   fronts.forEach((front, index) => {
     if (!shows(index)) return;
     const path = frontPath(front, xObjective, yObjective);
     if (path.length > 1) {
-      const d = path.map((p, i) => `${i === 0 ? 'M' : 'L'}${x.map(p.x)} ${y.map(p.y)}`).join(' ');
+      const points = path.map((p) => ({ x: x.map(p.x), y: y.map(p.y) }));
+      const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
       svg.append(el('path', { class: `front-line tier-${index}`, d }));
+      for (let i = 1; i < points.length; i += 1) {
+        frontSegments.push({
+          x1: points[i - 1].x,
+          y1: points[i - 1].y,
+          x2: points[i].x,
+          y2: points[i].y,
+        });
+      }
     }
   });
 
@@ -429,6 +535,7 @@ export function renderChart({
     model,
     px: x.map(model[xMetric.key]),
     py: y.map(model[yMetric.key]),
+    ranked: tierOf.has(model.id),
   }));
 
   // Names -------------------------------------------------------------------
@@ -469,6 +576,7 @@ export function renderChart({
     svg,
     targets: labelled.slice(0, LABEL_LIMIT),
     obstacles: positions,
+    segments: frontSegments,
     plot,
     compact,
   });

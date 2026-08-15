@@ -129,11 +129,17 @@ Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
   on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
   the labels instead**, whatever tier they are in, so the answer to the query is the only thing
   spelled out.
-- Placement is greedy over rings of candidate offsets. Two rules: a label may never overlap another
-  label or leave the plot (hard — a target with no slot goes unnamed, because a name in the wrong
-  place is worse than no name), and it should not cover other marks (soft, since the halo keeps it
-  legible either way). On the default view that names 15 of the 17 gold models with zero overlaps;
-  the two it drops are the longest names in the tightest corner.
+- Placement is greedy over rings of candidate offsets, 16 directions per ring. Only two rules are
+  absolute: a label may never overlap another label, and it may never leave the plot. A target with
+  no such slot goes unnamed, because a name in the wrong place is worse than no name.
+- **Everything else is priced, not forbidden**, so a crowded chart degrades instead of emptying out.
+  Crossing a front line costs 10 and is the expensive one — a name laid across a frontier hides the
+  one thing the chart draws, and reads as if the curve itself were annotated. A leader crossing one
+  costs 4, covering a ranked mark 3, covering the dominated cloud 1. The search stops at the first
+  zero-cost slot on the nearest ring that has one.
+  - The prices came from real clutter (2026-08-15): before them, five of the fifteen names on the
+    default view lay across a front line. After, 1280px names 15 of 17 gold models with zero label
+    overlaps, no ranked mark covered, and two crossings left in the tightest corner.
 - Targets are served **most-crowded-first**. Left-to-right names exactly as many but pushes them
   further out — 230px of leader line against 183, worst case 66px against 41.
 - **Phones get no idle labels** (`compact`), only search ones. A dozen names do not fit in 353px,
