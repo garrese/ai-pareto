@@ -69,6 +69,7 @@ export function createPushHandler({
         deliveryAttempt,
         eventId: event.eventId,
         frontId: event.frontId,
+        eventType: event.type,
         postId: post.id,
       });
       return {

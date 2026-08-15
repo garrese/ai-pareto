@@ -9,6 +9,7 @@
   },
   "scripts": {
     "authorize": "node scripts/authorize-user.mjs",
+    "sample": "node scripts/publish-sample.mjs",
     "start": "node src/server.js",
     "test": "node --test"
   },

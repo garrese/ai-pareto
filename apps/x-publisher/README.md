@@ -12,6 +12,37 @@ where X accepts a post but the service stops before Firestore records the return
 X does not provide a downstream idempotency key for this endpoint. Timeline reconciliation narrows
 the duplicate window but cannot justify a distributed exactly-once guarantee.
 
+## What gets posted
+
+One post per model that **arrives** in one of the three Pareto fronts or **climbs** to a better one.
+Demotions are silent — they are the wake of an arrival, and the models pushed out are already named
+in the post that pushed them. Only the `cost-per-task-intelligence` front is published. Above four
+movements in one scan the collector sends a digest instead. See `AGENTS.md` for why each of those
+rules exists; they were chosen against the real dataset, not in the abstract.
+
+```
+🥇 GPT-6 (high) enters Pareto front 1
+   61.2 intelligence · $0.82/task
+Displaces Grok 4.6 (high) (60.9 · $0.8367).
+https://ai-pareto.web.app/?highlight=GPT-6%20(high)
+[aa:ddaa419a711f]
+```
+
+`renderPost` guarantees the result fits X's 280-character budget, counting URLs at their flat 23 and
+emoji at two. When a post would overflow it sheds detail in a fixed order: the displaced model's
+figures, then the subject's, then names are truncated with an ellipsis.
+
+### Rehearsing a post
+
+```bash
+npm run sample
+```
+
+Builds a real event from the cached dataset, renders it, and prints it without sending anything.
+`--name`, `--intel` and `--cost` shape the scenario; `--confirm` publishes it for real, which
+requires the credentials below. Publishing twice with the same scenario reconciles against the
+existing post rather than duplicating it.
+
 ## Authentication
 
 Posting uses OAuth 1.0a User Context, supported by `POST /2/tweets`. Configure a developer App and

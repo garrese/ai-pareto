@@ -169,6 +169,37 @@ Guidelines that still apply:
   single-developer repository and does not need feature branches. Create a branch only when the user
   asks for one or when parallel work would make isolation materially safer.
 
+## What the X bot publishes
+
+Decided with the user on 2026-08-15, after simulating the rules against the live dataset. Do not
+widen any of this without being asked.
+
+- **Only arrivals and promotions.** A model that was in none of the peeled fronts and now is, or one
+  that moved to a strictly better front. Demotions and exits stay silent. This matters more than it
+  looks: fronts are not fixed-size, and one arrival in front 1 pushed models down through fronts 2
+  and 3 for **five** membership changes in the real data — announcing each would retell one piece of
+  news five times. A pathological arrival displaced eight at once and cascaded to nineteen.
+- **An arrival need not displace anyone.** A non-dominated model that dominates nobody just makes
+  the front wider (17 → 18 in the real data). `displaced` is then empty and the post names the
+  frontier neighbour instead. Never write copy that assumes a displaced model exists.
+- **Only `cost-per-task-intelligence` is published.** `price-intelligence` stays monitored but
+  unpublished — 380 models against 136, so it moves far more often. `published: true` in
+  `definitions.js` is the switch.
+- **One post per movement, with a burst cap.** Above `MAX_POSTS_PER_SCAN` the scan collapses into a
+  single digest. A four-hour scan normally yields zero or one; a burst means Artificial Analysis
+  re-scored the catalogue.
+- **Template B**, agreed after comparing four. Headline with medal, indented metrics, relation line.
+  When it will not fit, detail is dropped in a fixed order — the displaced model's numbers, then the
+  subject's, then names are truncated. Names are never cut while a number could go instead.
+- Posts link to `?highlight=<model name>`, which the site reads into its search box. X flat-rates
+  every URL at 23 characters, so the parameter costs nothing.
+- `apps/x-publisher/scripts/publish-sample.mjs` rehearses the whole path against the real cache and
+  is a dry run unless given `--confirm`.
+
+Number formatting is duplicated between `apps/web/src/metrics.js` and `apps/x-publisher/src/render.js`
+because the two apps share no code. A post and the page it links to must show identical figures —
+change one, change the other.
+
 ## Windows PowerShell
 
 The user's machine is a managed Windows box with PowerShell's execution policy at `Restricted`.

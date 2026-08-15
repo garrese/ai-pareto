@@ -4,15 +4,22 @@ import test from 'node:test';
 import { createPushHandler } from '../src/handler.js';
 
 const event = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   eventId: `sha256:${'a'.repeat(64)}`,
-  type: 'pareto.front.changed',
+  type: 'pareto.model.moved',
   occurredAt: '2026-08-14T12:00:00.000Z',
   fromSnapshot: 'snapshot-before',
   toSnapshot: 'snapshot-after',
-  frontId: 'price-intelligence',
-  addedModelIds: ['model-a'],
-  removedModelIds: [],
+  frontId: 'cost-per-task-intelligence',
+  objectives: [
+    { key: 'costPerTask', dir: 'min' },
+    { key: 'intelligence', dir: 'max' },
+  ],
+  tier: 0,
+  previousTier: null,
+  model: { id: 'model-a', name: 'GPT-6 (high)', metrics: { costPerTask: 0.82, intelligence: 61.2 } },
+  displaced: [],
+  neighbour: null,
 };
 const envelope = {
   message: {

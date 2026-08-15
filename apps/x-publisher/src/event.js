@@ -1,38 +1,95 @@
-const EVENT_TYPE = 'pareto.front.changed';
+const MOVE_TYPE = 'pareto.model.moved';
+const DIGEST_TYPE = 'pareto.scan.digest';
 const EVENT_ID = /^sha256:[a-f0-9]{64}$/;
 
-const stringArray = (value) =>
-  Array.isArray(value) && value.every((entry) => typeof entry === 'string' && entry.length > 0);
+const isText = (value) => typeof value === 'string' && value.length > 0;
 
-export function validateParetoChangeEvent(value) {
+function readModel(value, field) {
+  if (!value || typeof value !== 'object') throw new Error(`Invalid ${field}`);
+  if (!isText(value.id) || !isText(value.name)) throw new Error(`Invalid ${field} identity`);
+  if (!value.metrics || typeof value.metrics !== 'object') {
+    throw new Error(`Invalid ${field} metrics`);
+  }
+  return { id: value.id, name: value.name, metrics: { ...value.metrics } };
+}
+
+function readObjectives(value) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error('Invalid objectives');
+  return value.map((objective) => {
+    if (!isText(objective?.key) || !['min', 'max'].includes(objective?.dir)) {
+      throw new Error('Invalid objectives');
+    }
+    return { key: objective.key, dir: objective.dir };
+  });
+}
+
+function readTier(value, field, { max = 2 } = {}) {
+  if (!Number.isInteger(value) || value < 0 || value > max) throw new Error(`Invalid ${field}`);
+  return value;
+}
+
+function readCommon(value) {
   if (!value || typeof value !== 'object') throw new Error('Event must be a JSON object');
-  if (value.schemaVersion !== 1) throw new Error('Unsupported event schemaVersion');
-  if (value.type !== EVENT_TYPE) throw new Error('Unsupported event type');
+  if (value.schemaVersion !== 2) throw new Error('Unsupported event schemaVersion');
   if (!EVENT_ID.test(value.eventId ?? '')) throw new Error('Invalid eventId');
   if (!Number.isFinite(Date.parse(value.occurredAt))) throw new Error('Invalid occurredAt');
-
   for (const field of ['fromSnapshot', 'toSnapshot', 'frontId']) {
-    if (typeof value[field] !== 'string' || value[field].length === 0) {
-      throw new Error(`Invalid ${field}`);
-    }
-  }
-  if (!stringArray(value.addedModelIds) || !stringArray(value.removedModelIds)) {
-    throw new Error('Model ID changes must be string arrays');
-  }
-  if (value.addedModelIds.length === 0 && value.removedModelIds.length === 0) {
-    throw new Error('Pareto change event contains no changes');
+    if (!isText(value[field])) throw new Error(`Invalid ${field}`);
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     eventId: value.eventId,
-    type: EVENT_TYPE,
     occurredAt: value.occurredAt,
     fromSnapshot: value.fromSnapshot,
     toSnapshot: value.toSnapshot,
     frontId: value.frontId,
-    addedModelIds: [...new Set(value.addedModelIds)].sort(),
-    removedModelIds: [...new Set(value.removedModelIds)].sort(),
+    objectives: readObjectives(value.objectives),
+  };
+}
+
+export function validateParetoEvent(value) {
+  const common = readCommon(value);
+
+  if (value.type === DIGEST_TYPE) {
+    if (!Number.isInteger(value.moveCount) || value.moveCount < 1) {
+      throw new Error('Invalid moveCount');
+    }
+    if (!Array.isArray(value.perTier) || value.perTier.some((n) => !Number.isInteger(n) || n < 0)) {
+      throw new Error('Invalid perTier');
+    }
+    return {
+      ...common,
+      type: DIGEST_TYPE,
+      moveCount: value.moveCount,
+      perTier: [...value.perTier],
+      headline: {
+        tier: readTier(value.headline?.tier, 'headline tier'),
+        model: readModel(value.headline?.model, 'headline model'),
+      },
+    };
+  }
+
+  if (value.type !== MOVE_TYPE) throw new Error('Unsupported event type');
+
+  const tier = readTier(value.tier, 'tier');
+  const previousTier =
+    value.previousTier === null ? null : readTier(value.previousTier, 'previousTier');
+  // An arrival has no previous tier; a promotion must actually be upward, or
+  // the collector's own suppression rule has been violated somewhere upstream.
+  if (previousTier !== null && previousTier <= tier) {
+    throw new Error('A published movement must be an arrival or a promotion');
+  }
+  if (!Array.isArray(value.displaced)) throw new Error('Invalid displaced');
+
+  return {
+    ...common,
+    type: MOVE_TYPE,
+    tier,
+    previousTier,
+    model: readModel(value.model, 'model'),
+    displaced: value.displaced.map((entry, index) => readModel(entry, `displaced[${index}]`)),
+    neighbour: value.neighbour ? readModel(value.neighbour, 'neighbour') : null,
   };
 }
 
@@ -50,7 +107,7 @@ export function decodePubSubEnvelope(envelope) {
   }
 
   return {
-    event: validateParetoChangeEvent(value),
+    event: validateParetoEvent(value),
     messageId: envelope.message.messageId ?? envelope.message.message_id ?? null,
     deliveryAttempt: Number(envelope.deliveryAttempt ?? 1),
   };
