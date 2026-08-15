@@ -121,6 +121,15 @@ meaning with the surface.
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
 
+The **vertical scale reserves one label's worth of sky** past the highest and lowest marks — about
+26px, 24 on a phone — on top of the 6% proportional padding. `makeScale`'s `margin` option solves
+`p / (span + 2p) = margin / pixels`, because padding the domain also stretches it and the naive
+figure comes out short. Marks land on those edges constantly, since the extremes of a front are the
+whole point of drawing one, and 6% alone left about 19px, which is not a label. The reservation is
+unconditional rather than tied to the names checkbox, so toggling names does not move every point.
+Horizontally there is nothing to reserve: a name is ~200px wide and a margin that fitted one would
+be most of the plot, so side labels are placed inwards instead.
+
 ### Names on the plot
 
 Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.

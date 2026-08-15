@@ -76,6 +76,20 @@ const LABEL_LIMIT = 26;
  */
 const LABEL_RANKED_ONLY_ABOVE = 10;
 
+/**
+ * Room the vertical scale keeps clear above the highest mark and below the
+ * lowest, in pixels — exactly one nearest-ring label, so a mark at either end
+ * of the data has somewhere to put its name.
+ *
+ * Marks land on those edges constantly: the extremes of a Pareto front are the
+ * whole point of drawing one, and the 6% proportional padding left them about
+ * 19px of sky, which is not a label. The reservation is unconditional rather
+ * than tied to the names checkbox, so toggling names does not move every point
+ * on the chart.
+ */
+const edgeMargin = (compact) =>
+  (compact ? COMPACT_LABEL_RINGS : LABEL_RINGS)[0] + LABEL_HEIGHT / 2 + 2;
+
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
@@ -84,7 +98,12 @@ const el = (name, attrs = {}) => {
 
 // ── scales ───────────────────────────────────────────────────────────────────
 
-function makeScale({ values, type, range }) {
+/**
+ * @param {object} options
+ * @param {number} [options.margin]  pixels to keep clear beyond the extreme values,
+ *   on top of the proportional padding, ignored if the range is too short to give it
+ */
+function makeScale({ values, type, range, margin = 0 }) {
   const useLog = type === 'log' && values.every((v) => v > 0);
   const project = useLog ? Math.log10 : (v) => v;
 
@@ -94,7 +113,15 @@ function makeScale({ values, type, range }) {
     lo -= 0.5;
     hi += 0.5;
   }
-  const pad = (hi - lo) * 0.06;
+
+  // Padding the domain also stretches it, so the pixel margin it buys is less
+  // than the padding itself: solving p / (span + 2p) = margin / pixels for p is
+  // what actually leaves `margin` clear once the padded domain is mapped back.
+  const span = hi - lo;
+  const pixels = Math.abs(range[1] - range[0]);
+  const reserved = pixels > 2 * margin + 1 ? (margin * span) / (pixels - 2 * margin) : 0;
+
+  const pad = Math.max(span * 0.06, reserved);
   lo -= pad;
   hi += pad;
 
@@ -394,6 +421,10 @@ export function renderChart({
     values: plotted.map((m) => m[yMetric.key]),
     type: yMetric.scale,
     range: [plotTop + plotHeight, plotTop],
+    // Horizontally there is nothing to reserve: a name is 200px wide and a
+    // margin that fitted one would be most of the plot, so labels at the sides
+    // are placed inwards instead. Vertically a label is 13px and fits.
+    margin: edgeMargin(compact),
   });
   const yTicks = y.ticks(Math.max(4, Math.round(plotHeight / 60)));
 
