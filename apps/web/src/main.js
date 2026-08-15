@@ -1,6 +1,6 @@
 import { dataSourceMode, fetchModels, fetchUsage } from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
-import { paretoFronts } from './pareto.js';
+import { paretoFronts, runnersUp } from './pareto.js';
 import { renderChart } from './chart.js';
 
 const dom = {
@@ -19,6 +19,15 @@ const dom = {
   creatorList: document.getElementById('creator-list'),
   creatorsAll: document.getElementById('creators-all'),
   creatorsNone: document.getElementById('creators-none'),
+  creatorFilter: document.getElementById('creator-filter'),
+  creatorEmpty: document.getElementById('creator-empty'),
+  modelPicker: document.getElementById('model-picker'),
+  modelSummary: document.getElementById('model-summary'),
+  modelList: document.getElementById('model-list'),
+  modelsAll: document.getElementById('models-all'),
+  modelsNone: document.getElementById('models-none'),
+  modelFilter: document.getElementById('model-filter'),
+  modelEmpty: document.getElementById('model-empty'),
   logScale: document.getElementById('log-scale'),
   showLabels: document.getElementById('show-labels'),
   viewChart: document.getElementById('view-chart'),
@@ -34,23 +43,35 @@ const dom = {
   tableBody: document.getElementById('table-body'),
 };
 
+/**
+ * How many models off the fronts still get drawn. The full dominated cloud is
+ * several hundred marks that bury the fronts they surround; this many keeps the
+ * band immediately behind bronze, which is the only part of the cloud anyone
+ * reads a Pareto chart for.
+ */
+const RUNNER_LIMIT = 30;
+
 const state = {
   models: [],
   fronts: [],
+  /** The models off the fronts that are still drawn — at most `RUNNER_LIMIT`. */
+  runners: [],
   x: 'costPerTask',
   y: 'intelligence',
   /** Empty means "every creator"; anything else is an explicit subset. */
   creators: new Set(),
-  /** Empty means "every tier". Holds 0–3 for the fronts and 'rest' for the cloud. */
+  /** Empty means "every model"; anything else is an explicit subset. */
+  modelIds: new Set(),
+  /** Empty means "every tier". Holds 0–2 for the fronts and 'rest' for the runners-up. */
   tiers: new Set(),
   query: '',
   view: 'chart',
 };
 
-/** The tier picker's rows: the fronts plus everything they dominate. */
+/** The tier picker's rows: the fronts plus the runners-up drawn behind them. */
 const TIER_ROWS = [
   ...TIERS.map((tier, index) => ({ key: index, label: tier.name })),
-  { key: 'rest', label: 'Others (dominated)' },
+  { key: 'rest', label: 'Closest to a front' },
 ];
 
 const tierColor = (index) =>
@@ -69,10 +90,17 @@ function metricFor(key) {
   return dom.logScale.checked ? metric : { ...metric, scale: 'linear' };
 }
 
+/**
+ * Creators and models both filter the *input*, so the fronts are recomputed for
+ * whatever is left — pick five models and you get the fronts among those five.
+ * Tiers filter only what is drawn, because recomputing there would promote
+ * silver into gold's place the moment gold was hidden.
+ */
 function currentSlice() {
-  return state.creators.size === 0
-    ? state.models
-    : state.models.filter((m) => state.creators.has(m.creatorId));
+  let slice = state.models;
+  if (state.creators.size > 0) slice = slice.filter((m) => state.creators.has(m.creatorId));
+  if (state.modelIds.size > 0) slice = slice.filter((m) => state.modelIds.has(m.id));
+  return slice;
 }
 
 /** Null when everything is shown, so the chart can skip the filtering entirely. */
@@ -85,24 +113,20 @@ const tierShown = (tier) => {
   return !visible || visible.has(tier);
 };
 
+const hits = (model, query) =>
+  model.name.toLowerCase().includes(query) ||
+  (model.creator ?? '').toLowerCase().includes(query);
+
 /** Ids whose name or creator contains the query, or null when the box is empty. */
 function currentMatches(models) {
   const query = state.query.trim().toLowerCase();
   if (!query) return null;
-  return new Set(
-    models
-      .filter(
-        (m) =>
-          m.name.toLowerCase().includes(query) ||
-          (m.creator ?? '').toLowerCase().includes(query),
-      )
-      .map((m) => m.id),
-  );
+  return new Set(models.filter((m) => hits(m, query)).map((m) => m.id));
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
 
-function renderLegend(fronts, restCount, matchCount) {
+function renderLegend(fronts, restCount, dominatedCount, matchCount) {
   dom.legend.replaceChildren();
 
   TIERS.forEach((tier, index) => {
@@ -117,10 +141,15 @@ function renderLegend(fronts, restCount, matchCount) {
     dom.legend.append(item);
   });
 
+  // The count alone would read as the whole field. Saying how many dominated
+  // models there are is the only place the reader learns the plot is a subset.
   const other = document.createElement('li');
   if (!tierShown('rest')) other.className = 'is-hidden';
   const otherLabel = document.createElement('span');
-  otherLabel.textContent = 'Dominated by the tiers above';
+  otherLabel.textContent =
+    restCount < dominatedCount
+      ? `Closest to a front, of ${dominatedCount} dominated`
+      : 'Dominated by the tiers above';
   const otherCount = document.createElement('span');
   otherCount.className = 'count';
   otherCount.textContent = `${restCount}`;
@@ -186,52 +215,65 @@ function renderTooltip(model, tierIndex, event) {
   dom.tooltip.style.top = `${Math.max(12, top)}px`;
 }
 
-function renderTable(fronts, matches) {
+const byIntelligence = (a, b) => (b.intelligence ?? -Infinity) - (a.intelligence ?? -Infinity);
+
+/** `tierIndex` is null for a runner-up: on show, but on none of the fronts. */
+function tableRow(model, tierIndex, matches) {
+  const row = document.createElement('tr');
+  if (matches?.has(model.id)) row.className = 'is-match';
+
+  // The colour carries the tier; the rank is there so it never rests on
+  // colour alone, and "1º" costs a fraction of the width "Gold" does.
+  const tierCell = document.createElement('td');
+  const tierLabel = document.createElement('span');
+  tierLabel.className = 'tier-cell';
+  const text = document.createElement('span');
+  text.textContent = tierIndex === null ? '—' : TIERS[tierIndex].rank;
+  text.title = tierIndex === null ? 'Closest to a front' : TIERS[tierIndex].name;
+  tierLabel.append(tierIndex === null ? dot('var(--rest-mark)') : dot(tierColor(tierIndex)), text);
+  tierCell.append(tierLabel);
+
+  const nameCell = document.createElement('th');
+  nameCell.scope = 'row';
+  nameCell.textContent = model.name;
+
+  row.append(tierCell, nameCell);
+
+  for (const key of ['intelligence', 'costPerTask', 'price', 'speed', 'ttft']) {
+    const cell = document.createElement('td');
+    cell.className = 'num';
+    cell.textContent = Number.isFinite(model[key]) ? METRICS[key].format(model[key]) : '—';
+    row.append(cell);
+  }
+
+  // Creator is the widest column and the least often scanned, so it sits last.
+  const creatorCell = document.createElement('td');
+  creatorCell.className = 'creator';
+  creatorCell.textContent = model.creator ?? '—';
+  row.append(creatorCell);
+
+  return row;
+}
+
+/**
+ * Everything the chart draws, in words. The runners-up are listed too now that
+ * they are a bounded thirty rather than the whole dominated field.
+ */
+function renderTable(fronts, runners, matches) {
   dom.tableBody.replaceChildren();
 
   fronts.forEach((front, index) => {
     if (!tierShown(index)) return;
-    const sorted = [...front].sort(
-      (a, b) => (b.intelligence ?? -Infinity) - (a.intelligence ?? -Infinity),
-    );
-
-    for (const model of sorted) {
-      const row = document.createElement('tr');
-      if (matches?.has(model.id)) row.className = 'is-match';
-
-      // The colour carries the tier; the rank is there so it never rests on
-      // colour alone, and "1º" costs a fraction of the width "Gold" does.
-      const tierCell = document.createElement('td');
-      const tierLabel = document.createElement('span');
-      tierLabel.className = 'tier-cell';
-      const text = document.createElement('span');
-      text.textContent = TIERS[index].rank;
-      text.title = TIERS[index].name;
-      tierLabel.append(dot(tierColor(index)), text);
-      tierCell.append(tierLabel);
-
-      const nameCell = document.createElement('th');
-      nameCell.scope = 'row';
-      nameCell.textContent = model.name;
-
-      row.append(tierCell, nameCell);
-
-      for (const key of ['intelligence', 'costPerTask', 'price', 'speed', 'ttft']) {
-        const cell = document.createElement('td');
-        cell.className = 'num';
-        cell.textContent = Number.isFinite(model[key]) ? METRICS[key].format(model[key]) : '—';
-        row.append(cell);
-      }
-
-      // Creator is the widest column and the least often scanned, so it sits last.
-      const creatorCell = document.createElement('td');
-      creatorCell.className = 'creator';
-      creatorCell.textContent = model.creator ?? '—';
-      row.append(creatorCell);
-
-      dom.tableBody.append(row);
+    for (const model of [...front].sort(byIntelligence)) {
+      dom.tableBody.append(tableRow(model, index, matches));
     }
   });
+
+  if (tierShown('rest')) {
+    for (const model of [...runners].sort(byIntelligence)) {
+      dom.tableBody.append(tableRow(model, null, matches));
+    }
+  }
 }
 
 function render() {
@@ -240,20 +282,34 @@ function render() {
     (m) => Number.isFinite(m[state.x]) && Number.isFinite(m[state.y]),
   );
 
-  state.fronts = paretoFronts(
-    eligible,
-    [objectiveFor(state.x), objectiveFor(state.y)],
-    TIERS.length,
-  );
-  const ranked = state.fronts.reduce((total, front) => total + front.length, 0);
-  const matches = currentMatches(eligible);
+  const objectives = [objectiveFor(state.x), objectiveFor(state.y)];
+  state.fronts = paretoFronts(eligible, objectives, TIERS.length);
 
-  const restCount = eligible.length - ranked;
-  updateTierCounts(state.fronts, restCount);
-  renderLegend(state.fronts, restCount, matches ? matches.size : null);
+  // The fronts keep every model they claim; the cloud behind them is cut down to
+  // the ones nearest to joining a front, which is what `runnersUp` peels for.
+  const ranked = new Set(state.fronts.flatMap((front) => front.map((m) => m.id)));
+  const dominated = eligible.filter((m) => !ranked.has(m.id));
+  state.runners = runnersUp(dominated, objectives, RUNNER_LIMIT);
+
+  const rest = [...state.runners];
+
+  // Whatever was searched for is drawn even if the cut left it out. Every bot
+  // post links here by model name, and a link that highlights nothing reads as
+  // "that model is not in this data" rather than "that model is not on a front".
+  const query = state.query.trim().toLowerCase();
+  if (query) {
+    const kept = new Set(rest.map((m) => m.id));
+    rest.push(...dominated.filter((m) => !kept.has(m.id) && hits(m, query)));
+  }
+
+  const shown = [...state.fronts.flat(), ...rest];
+  const matches = currentMatches(shown);
+
+  updateTierCounts(state.fronts, rest.length);
+  renderLegend(state.fronts, rest.length, dominated.length, matches ? matches.size : null);
   renderChart({
     container: dom.chart,
-    models: eligible,
+    models: shown,
     fronts: state.fronts,
     xMetric: metricFor(state.x),
     yMetric: metricFor(state.y),
@@ -262,7 +318,7 @@ function render() {
     showLabels: dom.showLabels.checked,
     onHover: renderTooltip,
   });
-  renderTable(state.fronts, matches);
+  renderTable(state.fronts, rest, matches);
 }
 
 // ── controls ─────────────────────────────────────────────────────────────────
@@ -342,6 +398,37 @@ function setAllTiers(selected) {
   render();
 }
 
+// ── searchable pickers ───────────────────────────────────────────────────────
+
+/**
+ * Sixty creators and six hundred models are both more than anyone scrolls
+ * through. Rows are built once and hidden as you type: cheap to keep around,
+ * expensive to rebuild on every keystroke.
+ *
+ * The action buttons then apply to what the filter leaves visible — otherwise
+ * "Clear" would silently undo choices the reader cannot see — and relabel
+ * themselves while a query is up so the narrower scope is not a surprise.
+ */
+function bindPickerFilter({ input, list, empty, all, none }) {
+  const allLabel = all.textContent;
+  const noneLabel = none.textContent;
+
+  input.addEventListener('input', () => {
+    const query = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of list.children) {
+      const hit = !query || row.dataset.search.includes(query);
+      row.hidden = !hit;
+      if (hit) shown += 1;
+    }
+    empty.hidden = shown > 0 || list.children.length === 0;
+    all.textContent = query ? 'Select matches' : allLabel;
+    none.textContent = query ? 'Clear matches' : noneLabel;
+  });
+}
+
+const visibleBoxes = (list) => [...list.querySelectorAll('.picker-row:not([hidden]) input')];
+
 function updateCreatorSummary() {
   const total = dom.creatorList.querySelectorAll('input').length;
   const chosen = state.creators.size;
@@ -368,6 +455,7 @@ function fillCreatorList(models) {
   for (const [id, { name, count }] of sorted) {
     const row = document.createElement('label');
     row.className = 'picker-row';
+    row.dataset.search = name.toLowerCase();
 
     const box = document.createElement('input');
     box.type = 'checkbox';
@@ -393,12 +481,84 @@ function fillCreatorList(models) {
 }
 
 function setAllCreators(selected) {
-  state.creators.clear();
-  for (const box of dom.creatorList.querySelectorAll('input')) {
+  for (const box of visibleBoxes(dom.creatorList)) {
     box.checked = selected;
     if (selected) state.creators.add(box.value);
+    else state.creators.delete(box.value);
   }
   updateCreatorSummary();
+  render();
+}
+
+function updateModelSummary() {
+  const total = dom.modelList.children.length;
+  const chosen = state.modelIds.size;
+  dom.modelSummary.textContent =
+    chosen === 0 || chosen === total
+      ? 'All models'
+      : chosen === 1
+        ? (state.models.find((m) => state.modelIds.has(m.id))?.name ?? '1 model')
+        : `${chosen} of ${total} models`;
+}
+
+/**
+ * Every model the payload holds, brightest first — which axes a model can be
+ * plotted on changes with the axis pickers, so the list cannot be narrowed to
+ * the plottable ones without rebuilding it on every axis change. The badge is
+ * the intelligence index, the one figure that makes the ordering legible.
+ */
+function fillModelList(models) {
+  const sorted = [...models].sort(
+    (a, b) => byIntelligence(a, b) || a.name.localeCompare(b.name),
+  );
+
+  dom.modelList.replaceChildren();
+  for (const model of sorted) {
+    const row = document.createElement('label');
+    row.className = 'picker-row';
+    row.dataset.search = `${model.name} ${model.creator ?? ''}`.toLowerCase();
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = model.id;
+    box.addEventListener('change', () => {
+      if (box.checked) state.modelIds.add(model.id);
+      else state.modelIds.delete(model.id);
+      updateModelSummary();
+      render();
+    });
+
+    // The creator sits under the name: half the models here are called
+    // something-mini and the maker is what tells two of them apart.
+    const text = document.createElement('span');
+    text.className = 'picker-text';
+    const name = document.createElement('span');
+    name.textContent = model.name;
+    const creator = document.createElement('span');
+    creator.className = 'picker-note';
+    creator.textContent = model.creator ?? 'Unknown creator';
+    text.append(name, creator);
+
+    const badge = document.createElement('span');
+    badge.className = 'count';
+    badge.textContent = Number.isFinite(model.intelligence)
+      ? METRICS.intelligence.format(model.intelligence)
+      : '—';
+
+    row.append(box, text, badge);
+    dom.modelList.append(row);
+  }
+
+  updateModelSummary();
+}
+
+function setAllModels(selected) {
+  for (const box of visibleBoxes(dom.modelList)) {
+    box.checked = selected;
+    if (selected) state.modelIds.add(box.value);
+    else state.modelIds.delete(box.value);
+  }
+  updateModelSummary();
   render();
 }
 
@@ -456,6 +616,22 @@ function bindControls() {
   dom.tiersNone.addEventListener('click', () => setAllTiers(false));
   dom.creatorsAll.addEventListener('click', () => setAllCreators(true));
   dom.creatorsNone.addEventListener('click', () => setAllCreators(false));
+  dom.modelsAll.addEventListener('click', () => setAllModels(true));
+  dom.modelsNone.addEventListener('click', () => setAllModels(false));
+  bindPickerFilter({
+    input: dom.creatorFilter,
+    list: dom.creatorList,
+    empty: dom.creatorEmpty,
+    all: dom.creatorsAll,
+    none: dom.creatorsNone,
+  });
+  bindPickerFilter({
+    input: dom.modelFilter,
+    list: dom.modelList,
+    empty: dom.modelEmpty,
+    all: dom.modelsAll,
+    none: dom.modelsNone,
+  });
   dom.logScale.addEventListener('change', render);
   dom.showLabels.addEventListener('change', render);
   dom.viewChart.addEventListener('click', () => setView('chart'));
@@ -467,7 +643,7 @@ function bindControls() {
 
   // Close a dropdown when clicking outside it.
   document.addEventListener('click', (event) => {
-    for (const picker of [dom.tierPicker, dom.creatorPicker]) {
+    for (const picker of [dom.tierPicker, dom.creatorPicker, dom.modelPicker]) {
       if (picker.open && !picker.contains(event.target)) picker.open = false;
     }
   });
@@ -554,6 +730,7 @@ async function load() {
     dom.meta.textContent = describe(payload);
 
     if (!dom.creatorList.children.length) fillCreatorList(payload.models);
+    if (!dom.modelList.children.length) fillModelList(payload.models);
     render();
   } catch (err) {
     dom.meta.classList.add('is-error');

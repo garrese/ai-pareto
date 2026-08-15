@@ -15,6 +15,8 @@ public, so assume that everything committed is world-readable.
 - `apps/api` — Node server plus the production collector job. The local server uses the standard
   library; the collector uses official Firestore, Pub/Sub, and Google authentication clients. It
   holds the token, caches the upstream response locally, and serves `apps/web` during development.
+  Its port comes from `config.properties`, unless `PORT` is set in the environment — that wins, so a
+  second instance can be brought up alongside one that is already running.
 - `apps/web` — static frontend, plain HTML/CSS/ES modules, no build step, no dependencies. Localhost
   reads `apps/api`; hosted builds read the public snapshot contract configured in `config.js`.
 - `apps/x-publisher` — private Cloud Run Pub/Sub push consumer. It uses Firestore delivery leases,
@@ -144,6 +146,33 @@ unconditional rather than tied to the names checkbox, so toggling names does not
 Horizontally there is nothing to reserve: a name is ~200px wide and a margin that fitted one would
 be most of the plot, so side labels are placed inwards instead.
 
+### What gets drawn at all
+
+The plot is **the peeled fronts plus at most 30 more models** (`RUNNER_LIMIT` in `main.js`),
+decided with the user on 2026-08-15. The full dominated cloud was several hundred marks that buried
+the fronts they surround, and it stretched both axes to fit outliers nobody was looking at.
+
+The 30 are chosen by **carrying on peeling** — front 4, front 5, and so on — via `runnersUp` in
+`pareto.js`. The front that overflows the limit is thinned by spreading along the first objective,
+so the band keeps both of its ends instead of piling into one corner.
+
+**An efficiency ratio such as intelligence ÷ cost was considered first and rejected.** It is only
+defined when one objective is maximised and the other minimised, so it says nothing about
+intelligence-vs-speed or latency-vs-cost, and because the intelligence index is anchored at zero it
+scores a model at index 20 for $0.002 an order of magnitude above anything on the gold front. Front
+rank is invariant to units and to the log/linear toggle, which a ratio is not.
+
+Consequences that are load-bearing:
+
+- **Whatever is searched for is drawn**, even when the cut left it out — every bot post links here
+  by model name, and a link that highlights nothing reads as "that model is not in this data".
+  Those extras join the runners-up, so they are in the table too.
+- The legend says **"Closest to a front, of N dominated"**, which is the only place the reader
+  learns the plot is a subset. When nothing was cut it goes back to the old wording.
+- The **table lists the runners-up as well**, ranked `—`. It could not before, when "the rest" was
+  three hundred models; the accessibility mitigation is stronger for it.
+- Names improved for free: at 1280px all 17 gold models are named, against 15 before.
+
 ### Names on the plot
 
 Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
@@ -204,9 +233,25 @@ else gives them up.
 - Model names must stay wrappable. Their column has a `min-width` floor on phones: without it the
   column collapses to its longest word and rows grow six lines tall.
 
-The two pickers filter at different layers, deliberately: **creators** filter the input, so the
-fronts are recomputed for the subset; **tiers** filter only what is drawn, because recomputing
-would promote silver into gold's place the moment gold is hidden.
+## The pickers
+
+They filter at different layers, deliberately: **creators and models** filter the input, so the
+fronts are recomputed for the subset — pick five models and you get the fronts among those five;
+**tiers** filter only what is drawn, because recomputing would promote silver into gold's place the
+moment gold is hidden. Creators and models AND together.
+
+The creator and model pickers **each carry their own search box** (2026-08-15): 58 creators and 608
+models are more than anyone scrolls. Rows are built once and hidden as you type — rebuilding 608
+checkboxes per keystroke is the obvious mistake. Two details that are easy to get wrong:
+
+- `.picker-row` sets `display: flex`, which **beats the `hidden` attribute's UA rule**, so
+  `.picker-row[hidden] { display: none }` has to be said explicitly or filtering does nothing.
+- **Select all / Clear act on what the filter leaves visible**, and relabel themselves to "Select
+  matches" / "Clear matches" while a query is up. Acting on everything would silently undo choices
+  the reader cannot see.
+
+The filter is **not** auto-focused when the dropdown opens: on a phone that raises the keyboard over
+the list it is filtering.
 
 ## Git workflow
 

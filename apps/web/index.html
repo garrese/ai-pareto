@@ -17,7 +17,8 @@
         <h1>Language model Pareto fronts</h1>
         <p class="subtitle">
           The first three Pareto fronts over Artificial Analysis text-model data. Each front is the
-          set of models nothing else beats on both axes at once.
+          set of models nothing else beats on both axes at once. Behind them sit the 30 models
+          closest to making a front; the rest of the field is left off so the plot stays legible.
         </p>
         <!-- High in the page on purpose: the bot and the source are the two places
              a reader goes next, and at footnote size nobody ever saw them. -->
@@ -88,16 +89,53 @@
           </details>
         </div>
 
+        <!-- Both long pickers filter themselves: 60 creators and 600 models are
+             more than anyone scrolls through. The action buttons act on what the
+             filter leaves visible, and say so when one is typed. -->
         <div class="control">
           <span>Creators</span>
           <details class="picker" id="creator-picker">
             <summary id="creator-summary">All creators</summary>
             <div class="picker-panel">
+              <input
+                type="search"
+                class="picker-filter"
+                id="creator-filter"
+                placeholder="Find a creator…"
+                aria-label="Find a creator"
+                autocomplete="off"
+                spellcheck="false"
+              />
               <div class="picker-actions">
                 <button type="button" id="creators-all">Select all</button>
                 <button type="button" id="creators-none">Clear</button>
               </div>
               <div class="picker-list" id="creator-list"></div>
+              <p class="picker-empty" id="creator-empty" hidden>No creator matches that.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="control">
+          <span>Models</span>
+          <details class="picker" id="model-picker">
+            <summary id="model-summary">All models</summary>
+            <div class="picker-panel">
+              <input
+                type="search"
+                class="picker-filter"
+                id="model-filter"
+                placeholder="Find a model…"
+                aria-label="Find a model"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <div class="picker-actions">
+                <button type="button" id="models-all">Select all</button>
+                <button type="button" id="models-none">Clear</button>
+              </div>
+              <div class="picker-list" id="model-list"></div>
+              <p class="picker-empty" id="model-empty" hidden>No model matches that.</p>
             </div>
           </details>
         </div>
@@ -128,7 +166,8 @@
       <section class="card" id="table-card" hidden>
         <table class="data-table" id="table">
           <caption>
-            Models on the first three Pareto fronts for the selected axes.
+            The first three Pareto fronts for the selected axes, followed by the models closest to
+            joining them.
           </caption>
           <!-- Headings are abbreviated because the values are short: a spelled-out
                "Intelligence" widens the column past anything it ever holds. The
