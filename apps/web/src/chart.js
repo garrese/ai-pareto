@@ -69,6 +69,12 @@ const LABEL_RINGS = [18, 28, 40, 56, 78];
 const COMPACT_LABEL_RINGS = [15, 23, 33, 46, 62];
 /** A hard ceiling on labels, so a search for "gpt" cannot carpet the plot. */
 const LABEL_LIMIT = 26;
+/**
+ * Past this many matches, a search names only what sits on a front. A broad
+ * query matches most of the dominated cloud, and naming all of it buries the
+ * handful of matches anyone was looking for.
+ */
+const LABEL_RANKED_ONLY_ABOVE = 10;
 
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
@@ -325,6 +331,7 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
  * @param {object} options.yMetric
  * @param {Set<string>|null} options.matches  ids matching the search, or null when idle
  * @param {Set<number|'rest'>|null} options.visibleTiers  tiers to draw, or null for all
+ * @param {boolean} options.showLabels  whether models are named on the plot
  * @param {(model: any, tierIndex: number|null, event: MouseEvent|null) => void} options.onHover
  */
 export function renderChart({
@@ -335,6 +342,7 @@ export function renderChart({
   yMetric,
   matches,
   visibleTiers,
+  showLabels,
   onHover,
 }) {
   const shows = (tier) => !visibleTiers || visibleTiers.has(tier);
@@ -544,32 +552,45 @@ export function renderChart({
   // are hundreds of it. A search takes the labels over: only what matched is
   // named, so the answer to the query is the only thing spelled out.
   let labelled = [];
-  if (searching) {
-    labelled = positions
-      .filter((p) => matches.has(p.model.id))
-      // Ranked models are named first, so they win the space when it runs short.
-      .sort(
-        (a, b) =>
-          (tierOf.get(a.model.id) ?? fronts.length) - (tierOf.get(b.model.id) ?? fronts.length) ||
-          a.px - b.px,
-      );
-  } else if (!compact) {
-    // A phone has no room for a dozen names; the tooltip still reaches them.
+  if (!showLabels) {
+    labelled = [];
+  } else if (searching) {
+    labelled = positions.filter((p) => matches.has(p.model.id));
+    if (labelled.length > LABEL_RANKED_ONLY_ABOVE) {
+      labelled = labelled.filter((p) => p.ranked);
+    }
+    // Better fronts are named first, so they win the space when it runs short.
+    labelled.sort(
+      (a, b) =>
+        (tierOf.get(a.model.id) ?? fronts.length) - (tierOf.get(b.model.id) ?? fronts.length) ||
+        a.px - b.px,
+    );
+  } else {
     const topTier = fronts.findIndex((front, index) => shows(index) && front.length > 0);
     if (topTier !== -1) {
       labelled = positions.filter((p) => tierOf.get(p.model.id) === topTier);
-      // Most hemmed-in first. Placement is greedy, so whoever goes first takes
-      // the closest slot — and a model with room to spare can afford to be
-      // served late, while one in the crowd cannot. Left-to-right order names
-      // just as many but pushes them further out: 230px of leader line against
-      // 183, worst case 66px against 41, on the default view.
-      const crowding = new Map(
+      const leftmost = Math.min(...labelled.map((p) => p.px));
+      const rightmost = Math.max(...labelled.map((p) => p.px));
+      // Most hemmed-in first, but the two ends of the front go before anyone.
+      // They are the answers to "what is the best there is" and "what is the
+      // least I can pay to still be on the front", and the top end sits in the
+      // corner where space runs out first — served late it went unnamed.
+      // Placement is greedy, so whoever goes first takes the closest slot, and
+      // a model with room to spare can afford to wait. Plain left-to-right
+      // order names just as many but pushes them further out: 230px of leader
+      // line against 183, worst case 66px against 41, on the default view.
+      // One past the most crowded a model could possibly be, so the ends
+      // outrank everyone without the two of them tying at Infinity.
+      const ahead = labelled.length + 1;
+      const priority = new Map(
         labelled.map((p) => [
           p.model.id,
-          labelled.filter((q) => Math.hypot(q.px - p.px, q.py - p.py) < 130).length,
+          p.px === leftmost || p.px === rightmost
+            ? ahead
+            : labelled.filter((q) => Math.hypot(q.px - p.px, q.py - p.py) < 130).length,
         ]),
       );
-      labelled.sort((a, b) => crowding.get(b.model.id) - crowding.get(a.model.id) || a.px - b.px);
+      labelled.sort((a, b) => priority.get(b.model.id) - priority.get(a.model.id) || a.px - b.px);
     }
   }
   drawLabels({

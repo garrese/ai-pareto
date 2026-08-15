@@ -20,6 +20,7 @@ const dom = {
   creatorsAll: document.getElementById('creators-all'),
   creatorsNone: document.getElementById('creators-none'),
   logScale: document.getElementById('log-scale'),
+  showLabels: document.getElementById('show-labels'),
   viewChart: document.getElementById('view-chart'),
   viewTable: document.getElementById('view-table'),
   usage: document.getElementById('usage'),
@@ -258,6 +259,7 @@ function render() {
     yMetric: metricFor(state.y),
     matches,
     visibleTiers: visibleTiers(),
+    showLabels: dom.showLabels.checked,
     onHover: renderTooltip,
   });
   renderTable(state.fronts, matches);
@@ -455,6 +457,7 @@ function bindControls() {
   dom.creatorsAll.addEventListener('click', () => setAllCreators(true));
   dom.creatorsNone.addEventListener('click', () => setAllCreators(false));
   dom.logScale.addEventListener('change', render);
+  dom.showLabels.addEventListener('change', render);
   dom.viewChart.addEventListener('click', () => setView('chart'));
   dom.viewTable.addEventListener('click', () => setView('table'));
   dom.filtersToggle.addEventListener('click', () =>
@@ -567,15 +570,30 @@ async function load() {
  */
 function applyHighlightParameter() {
   const requested = new URLSearchParams(globalThis.location?.search ?? '').get('highlight');
-  if (!requested) return;
+  if (!requested) return false;
   dom.search.value = requested;
   state.query = requested;
+  return true;
+}
+
+/**
+ * The same screens that fold the filters away start with names off: a dozen of
+ * them on a phone-width plot would be the chart rather than an annotation of
+ * it. A link from the bot turns them on anyway, whatever the screen — the name
+ * is the entire reason that link was followed.
+ */
+function setNameDefault(highlighted) {
+  const cramped =
+    globalThis.matchMedia?.(
+      '(max-width: 720px), (orientation: landscape) and (max-height: 500px) and (max-width: 960px)',
+    ).matches ?? false;
+  dom.showLabels.checked = highlighted || !cramped;
 }
 
 fillMetricSelects();
 fillTierList();
 bindControls();
-applyHighlightParameter();
+setNameDefault(applyHighlightParameter());
 setFiltersOpen(false);
 try {
   if (dataSourceMode() === 'snapshot') dom.usage.hidden = true;

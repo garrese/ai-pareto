@@ -521,9 +521,12 @@ body {
   stroke-linejoin: round;
 }
 
+/* Clearly darker than the grid it crosses. At --baseline it read as one more
+   gridline, which is exactly what a pointer must not look like. */
 .mark-label line {
-  stroke: var(--baseline);
+  stroke: var(--text-muted);
   stroke-width: 1;
+  stroke-linecap: round;
 }
 
 .hover-ring {

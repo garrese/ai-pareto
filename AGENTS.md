@@ -128,7 +128,16 @@ Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
 - **Idle, the best front on show is named** — gold normally, silver if gold is filtered out, and so
   on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
   the labels instead**, whatever tier they are in, so the answer to the query is the only thing
-  spelled out.
+  spelled out — but past **10 matches only the ranked ones are named**, because a broad query
+  matches most of the cloud and burying the fronts in it defeats the point.
+- A **"Model names" checkbox** in the filters turns the whole thing off. It starts **off on the
+  screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
+  annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
+  the entire reason a bot link was followed.
+- The **two ends of the front are served before anyone else**. They answer "what is the best there
+  is" and "what is the least I can pay to still be on the front", and the top end sits in the corner
+  where space runs out first: served on crowding alone it went unnamed, which is the one omission a
+  reader notices (reported 2026-08-15).
 - Placement is greedy over rings of candidate offsets, 16 directions per ring. Only two rules are
   absolute: a label may never overlap another label, and it may never leave the plot. A target with
   no such slot goes unnamed, because a name in the wrong place is worse than no name.
@@ -142,10 +151,9 @@ Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
     overlaps, no ranked mark covered, and two crossings left in the tightest corner.
 - Targets are served **most-crowded-first**. Left-to-right names exactly as many but pushes them
   further out — 230px of leader line against 183, worst case 66px against 41.
-- **Phones get no idle labels** (`compact`), only search ones. A dozen names do not fit in 353px,
-  and the tooltip still reaches every model.
 - The label halo is a `paint-order: stroke` outline in `--surface-1`. Labels cross the dominated
-  cloud and are unreadable over it without one.
+  cloud and are unreadable over it without one. Leader lines are `--text-muted`, not `--baseline`:
+  at `--baseline` they read as one more gridline, which is what a pointer must never look like.
 
 ### Dimming while searching
 
