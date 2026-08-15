@@ -268,8 +268,21 @@ What "finished and verified" means in practice:
 
 Guidelines that still apply:
 
+- **Use the branch hierarchy for every change:**
+  - `main` is the stable, deployable branch. Never implement or commit directly on `main`.
+  - `develop` is the integration branch. Start work from an up-to-date `develop` and merge completed
+    work back into it.
+  - Every evolution uses a short-lived work branch created from `develop`. Coding agents use
+    `codex/<type>-<short-topic>` by default, for example `codex/feature-model-comparison` or
+    `codex/fix-mobile-axis`.
+  - Merge `develop` into `main` only for a release or deployment. Deploy only revisions that are on
+    `main`, and return to `develop` after completing the release.
 - **One logical change per commit.** A backend change and a frontend change in the same turn are two
   commits, not one. Don't bundle unrelated work to save a commit.
+- **Update [`CHANGELOG.md`](CHANGELOG.md) with every completed evolution.** Add a concise entry under
+  the current local date (`YYYY-MM-DD`), newest date first, and use an `Added`, `Changed`, `Fixed`,
+  or `Removed` subsection as appropriate. Record the outcome and reason when useful, not a list of
+  touched files. Include the changelog update in the evolution's commit.
 - **Never commit a secret.** Before every commit, sanity-check that `apps/api/config.properties`,
   `.cache/`, `.claude/` are not staged — `git status --short` should not show them, and
   `git check-ignore` should. If a check ever fails, stop and say so rather than committing anyway.
@@ -277,9 +290,6 @@ Guidelines that still apply:
   to review before it leaves the local repo.
 - Write commit messages the way the rest of this file is written: what changed and *why*, not a
   changelog of file names. Skip the message body when the summary line already says it all.
-- Work directly on `main` by default. The user explicitly confirmed on 2026-08-14 that this is a
-  single-developer repository and does not need feature branches. Create a branch only when the user
-  asks for one or when parallel work would make isolation materially safer.
 
 ## What the X bot publishes
 

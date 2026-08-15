@@ -2,7 +2,7 @@
 
 **Explore the trade-offs between the world's leading AI models.**
 
-[**Open the live app**](https://ai-pareto.web.app) · [Architecture](doc/architecture.md) · [Local development](doc/local-development.md)
+[**Open the live app**](https://ai-pareto.web.app) · [Architecture](doc/architecture.md) · [Changelog](CHANGELOG.md) · [Local development](doc/local-development.md)
 
 AI Pareto is an end-to-end, production-minded learning project that turns the [Artificial Analysis](https://artificialanalysis.ai) model dataset into an interactive Pareto frontier explorer. It answers a practical question: *which models are genuinely hard to beat when intelligence, cost, speed, and latency pull in different directions?*
 
@@ -177,6 +177,7 @@ If your PowerShell policy prevents the `npm` shim from running, use `npm.cmd` in
 
 ## Further reading
 
+- [Project changelog](CHANGELOG.md)
 - [Architecture and failure semantics](doc/architecture.md)
 - [API and collector details](apps/api/README.md)
 - [Frontend behaviour and accessibility decisions](apps/web/README.md)
