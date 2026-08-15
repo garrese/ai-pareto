@@ -7,7 +7,9 @@ Front 1 (*gold*) is the set of models that nothing else beats on both axes at on
 front 2 (*silver*) surfaces, then *bronze*. Everything else is dominated by at least three models
 and is drawn in the background.
 
-> **Status:** production deployment infrastructure is implemented but not yet applied.
+> **Status:** the collector runs in production every four hours and the site is live at
+> <https://ai-pareto.web.app>. The X publisher is built and tested but not yet deployed — see
+> [`infra/gcp/README.md`](infra/gcp/README.md) for what is left.
 
 ## Bring Your Own Token (BYOT)
 

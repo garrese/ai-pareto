@@ -9,6 +9,38 @@ Terraform never receives the Artificial Analysis key, so the value cannot enter 
 secret container is managed here; a separate script sends the ignored local value directly to Secret
 Manager through `gcloud` standard input.
 
+## Current state — 2026-08-15
+
+The bootstrap and the collector are **applied and running**. `public/latest.json` in the public
+bucket was written at 08:17:58Z, and the snapshot history shows 00:18, 04:18 and 08:17, which is the
+four-hourly Cloud Scheduler doing its job. The static site is deployed and reads that data.
+
+What is **not** deployed is the X publisher: `publisher_image` and `x_user_id` are still null, so the
+Cloud Run service, the push subscription and the dead-letter subscription do not exist. Posts to X
+are therefore not automated yet.
+
+Two things will bite whoever finishes this.
+
+**The tfvars file is git-ignored and does not exist on a fresh machine.** `deploy_collector` is
+`var.collector_image != null`, so copying `production.tfvars.example` and applying it as-is would
+**destroy the running collector Job and its Scheduler**. Read the live digest out of state first and
+put it back in the file before planning:
+
+```bash
+terraform init
+terraform state show 'google_cloud_run_v2_job.collector[0]' | grep -m1 'image '
+```
+
+Then read every line of `terraform plan` before applying. A plan that destroys anything under
+`google_cloud_run_v2_job.collector` or `google_cloud_scheduler_job.collector` is wrong.
+
+**The deployed collector still emits v1 events.** The event contract moved to schemaVersion 2 on
+2026-08-15 (one post per model arrival or promotion, carrying names and metrics). The publisher
+rejects anything else, and a rejected event is retried and then dead-lettered. So the collector image
+must be rebuilt from current `main` **before** the publisher's push subscription exists, or the first
+real change detected will land in the dead-letter topic instead of on X. Order: rebuild and apply the
+collector, then enable the publisher.
+
 ## Prerequisites
 
 - Terraform 1.8 or newer.
