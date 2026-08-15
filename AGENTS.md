@@ -182,7 +182,7 @@ Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
   the labels instead**, whatever tier they are in, so the answer to the query is the only thing
   spelled out — but past **10 matches only the ranked ones are named**, because a broad query
   matches most of the cloud and burying the fronts in it defeats the point.
-- A **"Model names" checkbox** in the filters turns the whole thing off. It starts **off on the
+- A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **off on the
   screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
   annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
   the entire reason a bot link was followed.

@@ -445,15 +445,31 @@ body {
 .chart {
   height: clamp(560px, 72vh, 960px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 4px;
 }
 
+.chart-axis-y {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
 .chart-plot {
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+.chart-axis-x {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .chart svg {
@@ -853,7 +869,26 @@ body {
 
   .chart {
     height: clamp(300px, 58svh, 420px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 2px;
+  }
+
+  .chart-axis-y {
+    grid-column: 1;
+    grid-row: 1;
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+
+  .chart-plot {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .chart-axis-x {
+    grid-column: 1;
+    grid-row: 3;
   }
 
   .chart-axis-label {

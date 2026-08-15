@@ -58,11 +58,11 @@ const state = {
   runners: [],
   x: 'costPerTask',
   y: 'intelligence',
-  /** Empty means "every creator"; anything else is an explicit subset. */
+  /** Creator ids included in the Pareto calculation. */
   creators: new Set(),
-  /** Empty means "every model"; anything else is an explicit subset. */
+  /** Model ids included in the Pareto calculation. */
   modelIds: new Set(),
-  /** Empty means "every tier". Holds 0–2 for the fronts and 'rest' for the runners-up. */
+  /** Visible tiers. Holds 0–2 for the fronts and 'rest' for the runners-up. */
   tiers: new Set(),
   query: '',
   view: 'chart',
@@ -97,15 +97,14 @@ function metricFor(key) {
  * silver into gold's place the moment gold was hidden.
  */
 function currentSlice() {
-  let slice = state.models;
-  if (state.creators.size > 0) slice = slice.filter((m) => state.creators.has(m.creatorId));
-  if (state.modelIds.size > 0) slice = slice.filter((m) => state.modelIds.has(m.id));
-  return slice;
+  return state.models.filter(
+    (model) => state.creators.has(model.creatorId) && state.modelIds.has(model.id),
+  );
 }
 
 /** Null when everything is shown, so the chart can skip the filtering entirely. */
 function visibleTiers() {
-  return state.tiers.size === 0 || state.tiers.size === TIER_ROWS.length ? null : state.tiers;
+  return state.tiers.size === TIER_ROWS.length ? null : state.tiers;
 }
 
 const tierShown = (tier) => {
@@ -342,11 +341,13 @@ function fillMetricSelects() {
 function updateTierSummary() {
   const chosen = state.tiers.size;
   dom.tierSummary.textContent =
-    chosen === 0 || chosen === TIER_ROWS.length
+    chosen === TIER_ROWS.length
       ? 'All tiers'
-      : chosen === 1
-        ? (TIER_ROWS.find((row) => state.tiers.has(row.key))?.label ?? '1 tier')
-        : `${chosen} of ${TIER_ROWS.length} tiers`;
+      : chosen === 0
+        ? 'No tiers'
+        : chosen === 1
+          ? (TIER_ROWS.find((row) => state.tiers.has(row.key))?.label ?? '1 tier')
+          : `${chosen} of ${TIER_ROWS.length} tiers`;
 }
 
 /** Counts depend on the axes and the creator filter, so they are refreshed per render. */
@@ -367,6 +368,8 @@ function fillTierList() {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = String(key);
+    box.checked = true;
+    state.tiers.add(key);
     box.addEventListener('change', () => {
       if (box.checked) state.tiers.add(key);
       else state.tiers.delete(key);
@@ -433,11 +436,13 @@ function updateCreatorSummary() {
   const total = dom.creatorList.querySelectorAll('input').length;
   const chosen = state.creators.size;
   dom.creatorSummary.textContent =
-    chosen === 0 || chosen === total
+    chosen === total
       ? 'All creators'
-      : chosen === 1
-        ? (state.models.find((m) => state.creators.has(m.creatorId))?.creator ?? '1 creator')
-        : `${chosen} of ${total} creators`;
+      : chosen === 0
+        ? 'No creators'
+        : chosen === 1
+          ? (state.models.find((m) => state.creators.has(m.creatorId))?.creator ?? '1 creator')
+          : `${chosen} of ${total} creators`;
 }
 
 function fillCreatorList(models) {
@@ -460,6 +465,8 @@ function fillCreatorList(models) {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = id;
+    box.checked = true;
+    state.creators.add(id);
     box.addEventListener('change', () => {
       if (box.checked) state.creators.add(id);
       else state.creators.delete(id);
@@ -494,11 +501,13 @@ function updateModelSummary() {
   const total = dom.modelList.children.length;
   const chosen = state.modelIds.size;
   dom.modelSummary.textContent =
-    chosen === 0 || chosen === total
+    chosen === total
       ? 'All models'
-      : chosen === 1
-        ? (state.models.find((m) => state.modelIds.has(m.id))?.name ?? '1 model')
-        : `${chosen} of ${total} models`;
+      : chosen === 0
+        ? 'No models'
+        : chosen === 1
+          ? (state.models.find((m) => state.modelIds.has(m.id))?.name ?? '1 model')
+          : `${chosen} of ${total} models`;
 }
 
 /**
@@ -521,6 +530,8 @@ function fillModelList(models) {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = model.id;
+    box.checked = true;
+    state.modelIds.add(model.id);
     box.addEventListener('change', () => {
       if (box.checked) state.modelIds.add(model.id);
       else state.modelIds.delete(model.id);

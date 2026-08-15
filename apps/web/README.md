@@ -49,7 +49,11 @@ If Terraform had to use a non-default public bucket name, update the public `dat
 - **Highlight.** Typing in the search box rings every model whose name or creator contains the text
   and recedes the rest. It highlights rather than filters, so the fronts do not move under you.
 - **Creators.** A checkbox list, so arbitrary combinations are possible. This one *does* filter, and
-  the fronts are recomputed for the subset. No selection means every creator.
+  the fronts are recomputed for the subset. Every creator starts selected; clearing every checkbox
+  leaves no models in the plot.
+- **Models.** The searchable model list follows the same selected-means-included rule and also
+  recomputes the fronts for the selected subset. All models participate by default even though the
+  chart only draws the three fronts and the 30 dominated models closest to joining one.
 - **Tiers.** A checkbox list over the three fronts plus "Others (dominated)". This one only decides
   what is *drawn* — the fronts are never recomputed, because peeling gold away would promote silver
   into its place and the tiers would stop meaning anything. Hidden tiers do leave the axes, so the
