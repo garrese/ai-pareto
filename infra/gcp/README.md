@@ -176,8 +176,14 @@ ingests those entries into Cloud Logging automatically; no extra log sink or log
 needed. Every application entry has a `component` and a stable `event` field, while related work is
 correlated by `snapshotId`, `eventId`, `messageId`, and `postId` where applicable.
 
-Open **Logging > Logs Explorer** in the Google Cloud console and use these queries. Real model-data
-changes, with added, removed, and field-level updated model details:
+### Primary: Google Cloud Logs Explorer
+
+Use [Logs Explorer](https://console.cloud.google.com/logs/query?project=ia-models-analyzer) as the
+normal way to inspect the system. Set the time range first (for example, **Last 7 days**), then paste
+one of these filters into the query editor. Each result can be expanded to inspect its full
+`jsonPayload`.
+
+Real model-data changes, with added, removed, and field-level updated model details:
 
 ```text
 jsonPayload.event="data.refresh.changed"
@@ -207,6 +213,25 @@ Errors across both components:
 ```text
 severity>=ERROR
 (jsonPayload.component="collector" OR jsonPayload.component="x-publisher")
+```
+
+The resource picker can further narrow the view to the collector Cloud Run Job or the X publisher
+Cloud Run service, but the structured filters above work across both components.
+
+### Secondary: Google Cloud CLI
+
+Use the CLI for terminal-based inspection, scripting, or exporting results. It queries the same
+Cloud Logging entries as Logs Explorer:
+
+```powershell
+gcloud logging read 'jsonPayload.event="data.refresh.changed"' `
+  --project=ia-models-analyzer --freshness=7d --limit=50 --order=desc --format=json
+```
+
+For a full publication trace, replace the filter with:
+
+```text
+jsonPayload.event=~"^pareto\\.publication\\.|^publisher\\.delivery\\."
 ```
 
 Detail arrays are capped at 50 items per category so a wholesale upstream rescore cannot exceed a
