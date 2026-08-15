@@ -30,8 +30,11 @@ Run the dependency-free data-source tests with `npm test`. `firebase.json` deplo
 as-is; there is no build output or root-level workspace involved:
 
 ```bash
-firebase deploy --project ia-models-analyzer --only hosting
+firebase deploy --project ia-models-analyzer --only hosting:production
 ```
+
+The `production` deploy target publishes to <https://ai-pareto.web.app>. The original
+`ia-models-analyzer` Hosting site remains available for legacy links.
 
 If Terraform had to use a non-default public bucket name, update the public `dataRoot` in
 `config.js` before deployment.

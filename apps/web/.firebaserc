@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "ia-models-analyzer"
+  },
+  "targets": {
+    "ia-models-analyzer": {
+      "hosting": {
+        "production": [
+          "ai-pareto"
+        ]
+      }
+    }
+  }
+}
