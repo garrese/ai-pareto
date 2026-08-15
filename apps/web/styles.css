@@ -349,6 +349,11 @@ body {
   background: var(--page-plane);
 }
 
+.picker-row.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Model names are long and the maker is what tells two "mini"s apart, so the
    creator goes on a second line rather than competing for the first. */
 .picker-text {

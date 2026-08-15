@@ -1,7 +1,8 @@
 import { dataSourceMode, fetchModels, fetchUsage } from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
-import { paretoFronts, runnersUp } from './pareto.js';
+import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
+import { creatorSelectionStates, defaultParetoContext } from './selection.js';
 
 const dom = {
   meta: document.getElementById('meta'),
@@ -44,24 +45,27 @@ const dom = {
 };
 
 /**
- * How many models off the fronts still get drawn. The full dominated cloud is
- * several hundred marks that bury the fronts they surround; this many keeps the
- * band immediately behind bronze, which is the only part of the cloud anyone
- * reads a Pareto chart for.
+ * How many models off the fronts start selected. A deliberate picker selection
+ * can add more, but the first view stays focused on the band behind bronze.
  */
 const RUNNER_LIMIT = 30;
 
 const state = {
   models: [],
+  modelById: new Map(),
   fronts: [],
-  /** The models off the fronts that are still drawn — at most `RUNNER_LIMIT`. */
+  /** The selected models off the fronts that are currently drawn. */
   runners: [],
   x: 'costPerTask',
   y: 'intelligence',
-  /** Creator ids included in the Pareto calculation. */
+  /** Creator ids with at least one selected model; derived from `modelIds`. */
   creators: new Set(),
-  /** Model ids included in the Pareto calculation. */
+  /** Model ids selected for the chart. Every eligible id here is drawn. */
   modelIds: new Set(),
+  /** Dominated models in the full eligible dataset, for honest subset wording. */
+  availableDominatedCount: 0,
+  /** Whether interaction means the context is no longer the default nearest set. */
+  selectionEdited: false,
   /** Visible tiers. Holds 0–2 for the fronts and 'rest' for the runners-up. */
   tiers: new Set(),
   query: '',
@@ -91,16 +95,19 @@ function metricFor(key) {
 }
 
 /**
- * Creators and models both filter the *input*, so the fronts are recomputed for
- * whatever is left — pick five models and you get the fronts among those five.
- * Tiers filter only what is drawn, because recomputing there would promote
- * silver into gold's place the moment gold was hidden.
+ * Model checks are the input and the visible set: pick five eligible models and
+ * all five are drawn, with fronts recomputed among them. Creator checks are
+ * synchronized parent controls for those model checks. Tiers filter only what
+ * is drawn, because recomputing there would promote silver into gold's place.
  */
 function currentSlice() {
-  return state.models.filter(
-    (model) => state.creators.has(model.creatorId) && state.modelIds.has(model.id),
-  );
+  return state.models.filter((model) => state.modelIds.has(model.id));
 }
+
+const currentObjectives = () => [objectiveFor(state.x), objectiveFor(state.y)];
+
+const isPlottable = (model) =>
+  Number.isFinite(model[state.x]) && Number.isFinite(model[state.y]);
 
 /** Null when everything is shown, so the chart can skip the filtering entirely. */
 function visibleTiers() {
@@ -147,7 +154,9 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
   const otherLabel = document.createElement('span');
   otherLabel.textContent =
     restCount < dominatedCount
-      ? `Closest to a front, of ${dominatedCount} dominated`
+      ? state.selectionEdited
+        ? `Selected dominated models, of ${dominatedCount} dominated`
+        : `Closest to a front, of ${dominatedCount} dominated`
       : 'Dominated by the tiers above';
   const otherCount = document.createElement('span');
   otherCount.className = 'count';
@@ -281,14 +290,15 @@ function render() {
     (m) => Number.isFinite(m[state.x]) && Number.isFinite(m[state.y]),
   );
 
-  const objectives = [objectiveFor(state.x), objectiveFor(state.y)];
+  const objectives = currentObjectives();
   state.fronts = paretoFronts(eligible, objectives, TIERS.length);
 
-  // The fronts keep every model they claim; the cloud behind them is cut down to
-  // the ones nearest to joining a front, which is what `runnersUp` peels for.
+  // The initial selection is bounded, but explicit picker choices are promises:
+  // every selected and plottable model remains visible even when it is deeply
+  // dominated. Silently applying the runner limit again would break that promise.
   const ranked = new Set(state.fronts.flatMap((front) => front.map((m) => m.id)));
   const dominated = eligible.filter((m) => !ranked.has(m.id));
-  state.runners = runnersUp(dominated, objectives, RUNNER_LIMIT);
+  state.runners = dominated;
 
   const rest = [...state.runners];
 
@@ -297,15 +307,24 @@ function render() {
   // "that model is not in this data" rather than "that model is not on a front".
   const query = state.query.trim().toLowerCase();
   if (query) {
-    const kept = new Set(rest.map((m) => m.id));
-    rest.push(...dominated.filter((m) => !kept.has(m.id) && hits(m, query)));
+    const kept = new Set([...state.fronts.flat(), ...rest].map((m) => m.id));
+    rest.push(
+      ...state.models.filter(
+        (model) => isPlottable(model) && !kept.has(model.id) && hits(model, query),
+      ),
+    );
   }
 
   const shown = [...state.fronts.flat(), ...rest];
   const matches = currentMatches(shown);
 
   updateTierCounts(state.fronts, rest.length);
-  renderLegend(state.fronts, rest.length, dominated.length, matches ? matches.size : null);
+  renderLegend(
+    state.fronts,
+    rest.length,
+    state.availableDominatedCount,
+    matches ? matches.size : null,
+  );
   renderChart({
     container: dom.chart,
     models: shown,
@@ -350,7 +369,7 @@ function updateTierSummary() {
           : `${chosen} of ${TIER_ROWS.length} tiers`;
 }
 
-/** Counts depend on the axes and the creator filter, so they are refreshed per render. */
+/** Counts depend on the axes and model selection, so they are refreshed per render. */
 function updateTierCounts(fronts, restCount) {
   for (const badge of dom.tierList.querySelectorAll('.count')) {
     const key = badge.dataset.tier;
@@ -433,16 +452,69 @@ function bindPickerFilter({ input, list, empty, all, none }) {
 const visibleBoxes = (list) => [...list.querySelectorAll('.picker-row:not([hidden]) input')];
 
 function updateCreatorSummary() {
-  const total = dom.creatorList.querySelectorAll('input').length;
+  const boxes = [...dom.creatorList.querySelectorAll('input')];
+  const total = boxes.filter((box) => !box.disabled).length;
   const chosen = state.creators.size;
   dom.creatorSummary.textContent =
-    chosen === total
-      ? 'All creators'
+    total > 0 && boxes.filter((box) => !box.disabled).every((box) => box.checked)
+      ? 'All eligible creators'
       : chosen === 0
         ? 'No creators'
         : chosen === 1
           ? (state.models.find((m) => state.creators.has(m.creatorId))?.creator ?? '1 creator')
           : `${chosen} of ${total} creators`;
+}
+
+function activeCreatorModels() {
+  return state.models.filter(isPlottable);
+}
+
+/** Keeps creator parent checks and their summary derived from model selection. */
+function syncCreatorChecks() {
+  const selection = creatorSelectionStates(activeCreatorModels(), state.modelIds);
+  state.creators.clear();
+
+  for (const box of dom.creatorList.querySelectorAll('input')) {
+    const counts = selection.get(box.value) ?? { total: 0, selected: 0 };
+    box.disabled = counts.total === 0;
+    box.checked = counts.total > 0 && counts.selected === counts.total;
+    box.indeterminate = counts.selected > 0 && counts.selected < counts.total;
+    if (counts.selected > 0) state.creators.add(box.value);
+
+    const badge = box.closest('.picker-row')?.querySelector('.count');
+    if (badge) {
+      badge.textContent =
+        counts.selected === counts.total ? `${counts.total}` : `${counts.selected}/${counts.total}`;
+    }
+  }
+
+  updateCreatorSummary();
+}
+
+function syncModelChecks() {
+  for (const box of dom.modelList.querySelectorAll('input')) {
+    const model = state.modelById.get(box.value);
+    const plottable = model ? isPlottable(model) : false;
+    if (!plottable) state.modelIds.delete(box.value);
+    box.disabled = !plottable;
+    box.checked = plottable && state.modelIds.has(box.value);
+    const row = box.closest('.picker-row');
+    row?.classList.toggle('is-disabled', !plottable);
+    if (row) row.title = plottable ? '' : 'Unavailable for the selected axes';
+  }
+  updateModelSummary();
+}
+
+function setCreatorModels(creatorIds, selected) {
+  for (const model of state.models) {
+    if (!creatorIds.has(model.creatorId) || !isPlottable(model)) continue;
+    if (selected) state.modelIds.add(model.id);
+    else state.modelIds.delete(model.id);
+  }
+  state.selectionEdited = true;
+  syncModelChecks();
+  syncCreatorChecks();
+  render();
 }
 
 function fillCreatorList(models) {
@@ -465,13 +537,8 @@ function fillCreatorList(models) {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = id;
-    box.checked = true;
-    state.creators.add(id);
     box.addEventListener('change', () => {
-      if (box.checked) state.creators.add(id);
-      else state.creators.delete(id);
-      updateCreatorSummary();
-      render();
+      setCreatorModels(new Set([id]), box.checked);
     });
 
     const text = document.createElement('span');
@@ -484,30 +551,26 @@ function fillCreatorList(models) {
     dom.creatorList.append(row);
   }
 
-  updateCreatorSummary();
+  syncCreatorChecks();
 }
 
 function setAllCreators(selected) {
-  for (const box of visibleBoxes(dom.creatorList)) {
-    box.checked = selected;
-    if (selected) state.creators.add(box.value);
-    else state.creators.delete(box.value);
-  }
-  updateCreatorSummary();
-  render();
+  const creatorIds = new Set(visibleBoxes(dom.creatorList).map((box) => box.value));
+  setCreatorModels(creatorIds, selected);
 }
 
 function updateModelSummary() {
-  const total = dom.modelList.children.length;
+  const boxes = [...dom.modelList.querySelectorAll('input')];
+  const total = boxes.filter((box) => !box.disabled).length;
   const chosen = state.modelIds.size;
   dom.modelSummary.textContent =
-    chosen === total
-      ? 'All models'
+    total > 0 && chosen === total
+      ? 'All eligible models'
       : chosen === 0
         ? 'No models'
         : chosen === 1
           ? (state.models.find((m) => state.modelIds.has(m.id))?.name ?? '1 model')
-          : `${chosen} of ${total} models`;
+          : `${chosen} of ${total} eligible models`;
 }
 
 /**
@@ -530,12 +593,13 @@ function fillModelList(models) {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = model.id;
-    box.checked = true;
-    state.modelIds.add(model.id);
+    box.checked = state.modelIds.has(model.id);
     box.addEventListener('change', () => {
       if (box.checked) state.modelIds.add(model.id);
       else state.modelIds.delete(model.id);
+      state.selectionEdited = true;
       updateModelSummary();
+      syncCreatorChecks();
       render();
     });
 
@@ -560,16 +624,19 @@ function fillModelList(models) {
     dom.modelList.append(row);
   }
 
-  updateModelSummary();
+  syncModelChecks();
 }
 
 function setAllModels(selected) {
   for (const box of visibleBoxes(dom.modelList)) {
+    if (box.disabled) continue;
     box.checked = selected;
     if (selected) state.modelIds.add(box.value);
     else state.modelIds.delete(box.value);
   }
+  state.selectionEdited = true;
   updateModelSummary();
+  syncCreatorChecks();
   render();
 }
 
@@ -612,11 +679,31 @@ function bindControls() {
   dom.xMetric.addEventListener('change', () => {
     state.x = dom.xMetric.value;
     swapIfCollision('x');
+    const context = defaultParetoContext(
+      state.models,
+      currentObjectives(),
+      TIERS.length,
+      RUNNER_LIMIT,
+    );
+    state.availableDominatedCount = context.dominatedCount;
+    state.selectionEdited = true;
+    syncModelChecks();
+    syncCreatorChecks();
     render();
   });
   dom.yMetric.addEventListener('change', () => {
     state.y = dom.yMetric.value;
     swapIfCollision('y');
+    const context = defaultParetoContext(
+      state.models,
+      currentObjectives(),
+      TIERS.length,
+      RUNNER_LIMIT,
+    );
+    state.availableDominatedCount = context.dominatedCount;
+    state.selectionEdited = true;
+    syncModelChecks();
+    syncCreatorChecks();
     render();
   });
   dom.search.addEventListener('input', () => {
@@ -737,11 +824,24 @@ async function load() {
   try {
     const payload = await fetchModels();
     state.models = payload.models;
+    state.modelById = new Map(payload.models.map((model) => [model.id, model]));
     dom.meta.classList.remove('is-error');
     dom.meta.textContent = describe(payload);
 
+    const context = defaultParetoContext(
+      payload.models,
+      currentObjectives(),
+      TIERS.length,
+      RUNNER_LIMIT,
+    );
+    state.modelIds = context.modelIds;
+    state.availableDominatedCount = context.dominatedCount;
+    state.selectionEdited = false;
+
     if (!dom.creatorList.children.length) fillCreatorList(payload.models);
     if (!dom.modelList.children.length) fillModelList(payload.models);
+    syncModelChecks();
+    syncCreatorChecks();
     render();
   } catch (err) {
     dom.meta.classList.add('is-error');
