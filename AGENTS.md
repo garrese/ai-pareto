@@ -115,7 +115,7 @@ ramp. Re-run for light `#fcfcfb` and dark `#1a1a19` if you touch a tier colour.
 
 The mitigations that make the accepted failure safe are load-bearing: the legend is always rendered,
 the tooltip names the tier in words, and the table view lists every model by tier — as the ordinal
-`1º`/`2º`/`3º`, with the medal name on the cell's `title`, because the word is far wider than the
+`1st`/`2nd`/`3rd`, with the medal name on the cell's `title`, because the word is far wider than the
 column ever needs to be. Do not remove them. The dominated cloud (`--rest-mark`) is deliberately
 lighter and more transparent than silver in light mode, and darker in dark mode — "recessive" flips
 meaning with the surface.
