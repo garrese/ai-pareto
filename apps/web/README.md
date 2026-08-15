@@ -48,12 +48,13 @@ If Terraform had to use a non-default public bucket name, update the public `dat
   front are connected directly in metric order.
 - **Highlight.** Typing in the search box rings every model whose name or creator contains the text
   and recedes the rest. It highlights rather than filters, so the fronts do not move under you.
-- **Creators.** A checkbox list, so arbitrary combinations are possible. This one *does* filter, and
-  the fronts are recomputed for the subset. Every creator starts selected; clearing every checkbox
-  leaves no models in the plot.
-- **Models.** The searchable model list follows the same selected-means-included rule and also
-  recomputes the fronts for the selected subset. All models participate by default even though the
-  chart only draws the three fronts and the 30 dominated models closest to joining one.
+- **Creators.** A searchable set of parent checkboxes for the model selection. A creator is checked
+  when all of its eligible models are visible, mixed when only some are visible, and unchecked when
+  none are. Selecting or clearing one updates all of its eligible model checks.
+- **Models.** The searchable model checks are the visible set. The initial checks match exactly the
+  three fronts and the 30 dominated models closest to joining one; unchecked models are genuinely
+  absent. Selecting another eligible model keeps it visible and recomputes the fronts over the new
+  set. Models without both selected-axis measurements are disabled rather than falsely checked.
 - **Tiers.** A checkbox list over the three fronts plus "Others (dominated)". This one only decides
   what is *drawn* — the fronts are never recomputed, because peeling gold away would promote silver
   into its place and the tiers would stop meaning anything. Hidden tiers do leave the axes, so the

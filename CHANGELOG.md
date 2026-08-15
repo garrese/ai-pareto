@@ -7,6 +7,9 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-15
 
+- Synchronized model and creator filters with the visible chart: the initial model checks now match
+  the three fronts plus 30 runners, explicit additions stay visible, and creator checks reflect all,
+  some, or none of their selected models.
 - Improved the responsive chart layout, frontier lines, desktop height, small-laptop minimum height,
   phone space allocation, and vertical label clearance around extreme points.
 - Experimented with a fourth Pareto tier, first named Brown and then Chocolate, before standardising
