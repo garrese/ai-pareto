@@ -42,12 +42,26 @@ function parseArguments(argv) {
     else if (flag === '--intel') options.intelligence = Number(argv[++index]);
     else if (flag === '--cost') options.cost = Number(argv[++index]);
     else if (flag === '--site') options.site = argv[++index];
+    else if (flag === '--existing') options.existing = argv[++index];
     else throw new Error(`Unknown argument: ${flag}`);
   }
   if (!Number.isFinite(options.intelligence) || !Number.isFinite(options.cost)) {
     throw new Error('--intel and --cost must be numbers');
   }
   return options;
+}
+
+/**
+ * A replayed arrival is only true if every model it names is older than the
+ * newcomer — a model cannot have displaced something that did not exist yet.
+ * Returns the offending references so the caller can refuse to publish fiction.
+ */
+function anachronisms(event, subject, byId) {
+  const cited = [...event.displaced, ...(event.neighbour ? [event.neighbour] : [])];
+  return cited
+    .map((reference) => byId.get(reference.id))
+    .filter(Boolean)
+    .filter((model) => (model.releaseDate ?? '') >= (subject.releaseDate ?? ''));
 }
 
 const parseProperties = (source) =>
@@ -77,30 +91,49 @@ async function main() {
   const models = cache.models ?? cache.data ?? [];
   if (models.length === 0) throw new Error('The API cache is empty — run the API server once first');
 
-  const invented = {
-    id: 'sample-publish-rehearsal',
-    name: options.name,
-    creator: 'Sample',
-    creatorId: 'sample',
-    intelligence: options.intelligence,
-    costPerTask: options.cost,
-    price: null,
-    speed: null,
-    ttft: null,
-  };
+  // Two modes. `--existing` replays the real arrival of a model already in the
+  // data, by rebuilding the world as it was before that model existed; every
+  // figure in the resulting post is then a real measurement. Otherwise a model
+  // is invented, which exercises the same path but states something untrue.
+  let subject;
+  let before;
+  let after;
+
+  if (options.existing) {
+    subject = models.find((model) => model.name === options.existing);
+    if (!subject) throw new Error(`No model in the cache is named "${options.existing}"`);
+    before = models.filter((model) => model.id !== subject.id);
+    after = models;
+  } else {
+    subject = {
+      id: 'sample-publish-rehearsal',
+      name: options.name,
+      creator: 'Sample',
+      creatorId: 'sample',
+      intelligence: options.intelligence,
+      costPerTask: options.cost,
+      price: null,
+      speed: null,
+      ttft: null,
+    };
+    before = models;
+    after = [...models, subject];
+  }
 
   const events = createParetoChangeEvents({
-    previous: paretoOf(models),
-    current: paretoOf([...models, invented]),
-    models: [...models, invented],
+    previous: paretoOf(before),
+    current: paretoOf(after),
+    models: after,
     definitions: MONITORED_PARETO_FRONTS,
     occurredAt: OCCURRED_AT,
   });
 
   if (events.length === 0) {
     console.log(
-      `"${options.name}" at ${options.intelligence} / $${options.cost} does not reach any of the ` +
-        `top ${TIER_COUNT} fronts, so there is nothing to publish. Try a lower --cost.`,
+      options.existing
+        ? `"${subject.name}" is not in the top ${TIER_COUNT} fronts, so its arrival is not news.`
+        : `"${options.name}" at ${options.intelligence} / $${options.cost} does not reach any of ` +
+          `the top ${TIER_COUNT} fronts, so there is nothing to publish. Try a lower --cost.`,
     );
     process.exitCode = 1;
     return;
@@ -108,13 +141,32 @@ async function main() {
 
   const properties = parseProperties(await readFile(CONFIG_URL, 'utf8').catch(() => ''));
   const site = options.site ?? properties['public.site.url'] ?? 'https://ai-pareto.web.app';
-  const [event] = events;
+  const event = events.find(({ model }) => model?.id === subject.id) ?? events[0];
   const { text, marker, token } = renderPost(event, site);
 
   console.log(`\n${'─'.repeat(60)}`);
   console.log(text);
   console.log(`${'─'.repeat(60)}`);
   console.log(`${weightedLength(text)}/280 characters · event ${event.type} · token ${token}`);
+
+  if (options.existing) {
+    const byId = new Map(models.map((model) => [model.id, model]));
+    const wrong = anachronisms(event, subject, byId);
+    console.log(`\nReplaying a real arrival · ${subject.name} released ${subject.releaseDate}`);
+    for (const reference of [...event.displaced, ...(event.neighbour ? [event.neighbour] : [])]) {
+      const full = byId.get(reference.id);
+      console.log(`  cites ${full?.releaseDate ?? '?'}  ${reference.name}`);
+    }
+    if (wrong.length > 0) {
+      console.log(
+        `\nRefusing to publish: ${wrong.map((m) => m.name).join(', ')} is not older than ` +
+          `${subject.name}, so this post would claim something that never happened.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    console.log('  every model named is older — the post is historically true.');
+  }
 
   if (!options.confirm) {
     console.log('\nDry run. Nothing was sent. Add --confirm to publish this for real.');
