@@ -13,8 +13,8 @@ coding agents. Entries use the local project date (`YYYY-MM-DD`), with the newes
 
 ### Changed
 
-- Adopted a `develop` integration branch, short-lived work branches, and a stable `main` branch for
-  releases and deployments.
+- Adopted a `develop` integration branch, dated `feature/` and `fix/` work branches shared by all
+  AI coding agents, and a stable `main` branch for releases and deployments.
 - Renamed the chart-label control to "Relevant model names" to make its selective behaviour clear.
 - Made tier, creator, and model checkboxes reflect their active filter state from the initial view.
 - Moved the Y-axis title beside the axis on sufficiently wide screens while keeping it above the

@@ -272,9 +272,11 @@ Guidelines that still apply:
   - `main` is the stable, deployable branch. Never implement or commit directly on `main`.
   - `develop` is the integration branch. Start work from an up-to-date `develop` and merge completed
     work back into it.
-  - Every evolution uses a short-lived work branch created from `develop`. Coding agents use
-    `codex/<type>-<short-topic>` by default, for example `codex/feature-model-comparison` or
-    `codex/fix-mobile-axis`.
+  - Every evolution uses a short-lived, agent-neutral work branch created from `develop`. Use
+    `feature/YYYYMMDD-<brief-name>` for product work and
+    `fix/YYYYMMDD-<brief-name>` for defects, for example
+    `feature/20260815-model-comparison` or `fix/20260815-mobile-axis`. The date is the local
+    project date when the branch is created; the name is concise, lowercase, and kebab-cased.
   - Merge `develop` into `main` only for a release or deployment. Deploy only revisions that are on
     `main`, and return to `develop` after completing the release.
 - **One logical change per commit.** A backend change and a frontend change in the same turn are two
