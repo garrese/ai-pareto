@@ -19,8 +19,8 @@ Fill in `aa.api.key`, then:
 npm start
 ```
 
-On Windows PowerShell, write `npm.cmd` instead of `npm` — see
-[the root README](../../README.md#if-powershell-refuses-to-run-npm) for why.
+On Windows PowerShell, write `npm.cmd` instead of `npm` when the execution policy is restricted —
+see the [local development guide](../../doc/local-development.md#restricted-windows-powershell).
 
 `npm run dev` restarts on file changes.
 
