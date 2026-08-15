@@ -10,8 +10,11 @@ import { PubSubEventBus } from './pubsub-bus.js';
 import { runCollector } from './run.js';
 import { structuredLog } from './structured-log.js';
 
+let activeExecutionId = null;
+
 async function main() {
   const config = loadCloudCollectorConfig();
+  activeExecutionId = config.executionId;
   const auth = new GoogleAuth({
     projectId: config.projectId,
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -20,6 +23,7 @@ async function main() {
   const pubsub = new PubSub({ projectId: config.projectId });
 
   structuredLog('INFO', 'Collector execution started', {
+    event: 'collector.execution.started',
     executionId: config.executionId,
     taskAttempt: config.taskAttempt,
   });
@@ -35,6 +39,7 @@ async function main() {
   });
 
   structuredLog('INFO', 'Collector execution finished', {
+    event: 'collector.execution.finished',
     executionId: config.executionId,
     ...result,
   });
@@ -42,8 +47,11 @@ async function main() {
 
 main().catch((error) => {
   structuredLog('ERROR', 'Collector execution failed', {
+    event: 'collector.execution.failed',
+    executionId: activeExecutionId,
     errorName: error.name,
     errorMessage: error.message,
+    errorStack: error.stack,
   });
   process.exitCode = 1;
 });

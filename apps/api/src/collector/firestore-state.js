@@ -74,7 +74,7 @@ export class FirestoreCollectorState {
       const refresh = refreshSnapshot.exists ? refreshSnapshot.data() : null;
 
       if (refresh?.status === 'prepared' && refresh.snapshotId === snapshotId) {
-        return { eventCount: refresh.eventIds?.length ?? 0 };
+        return { eventCount: refresh.eventIds?.length ?? 0, events: [] };
       }
       if (refresh?.status !== 'running' || refresh.executionId !== executionId) {
         throw new Error('Collector execution no longer owns the refresh lease');
@@ -132,7 +132,7 @@ export class FirestoreCollectorState {
         leaseExpiresAt: null,
       });
 
-      return { eventCount: events.length };
+      return { eventCount: events.length, events };
     });
   }
 

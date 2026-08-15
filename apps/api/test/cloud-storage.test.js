@@ -84,3 +84,21 @@ test('the mutable manifest uses short caching and no create-only precondition', 
   assert.equal(new URL(call.url).searchParams.has('ifGenerationMatch'), false);
   assert.match(call.options.body, /max-age=60, must-revalidate/);
 });
+
+test('JSON objects can be read back for snapshot auditing', async () => {
+  let call;
+  const store = new CloudStorageJsonStore({
+    bucketName: 'public-bucket',
+    auth,
+    fetchImpl: async (url, options) => {
+      call = { url: String(url), options };
+      return Response.json({ models: [{ id: 'model-a' }] });
+    },
+  });
+
+  const result = await store.getJson('public/snapshots/id/models.json');
+
+  assert.deepEqual(result, { models: [{ id: 'model-a' }] });
+  assert.equal(new URL(call.url).searchParams.get('alt'), 'media');
+  assert.equal(call.options.headers.get('authorization'), 'Bearer test-token');
+});

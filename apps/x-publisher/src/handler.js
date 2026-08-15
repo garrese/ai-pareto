@@ -21,6 +21,7 @@ export function createPushHandler({
       decoded = decodePubSubEnvelope(envelope);
     } catch (error) {
       log('WARNING', 'Rejected invalid Pub/Sub event', {
+        event: 'publisher.delivery.invalid',
         requestId,
         errorMessage: error.message,
       });
@@ -28,6 +29,20 @@ export function createPushHandler({
     }
 
     const { event, messageId, deliveryAttempt } = decoded;
+    const eventContext = {
+      requestId,
+      messageId,
+      deliveryAttempt,
+      eventId: event.eventId,
+      eventType: event.type,
+      frontId: event.frontId,
+      fromSnapshot: event.fromSnapshot,
+      toSnapshot: event.toSnapshot,
+      modelId: event.model?.id ?? event.headline?.model?.id ?? null,
+      modelName: event.model?.name ?? event.headline?.model?.name ?? null,
+      tier: event.tier ?? event.headline?.tier ?? null,
+      previousTier: event.previousTier ?? null,
+    };
     const claimedAt = iso(now());
     const leaseExpiresAt = iso(new Date(Date.parse(claimedAt) + leaseSeconds * 1000));
     const claim = await deliveryStore.claim({
@@ -39,19 +54,26 @@ export function createPushHandler({
 
     if (claim.status === 'sent') {
       log('INFO', 'Duplicate Pub/Sub event acknowledged', {
-        requestId,
-        messageId,
-        eventId: event.eventId,
+        event: 'publisher.delivery.duplicate',
+        ...eventContext,
         postId: claim.postId,
       });
       return { statusCode: 204, outcome: 'duplicate', eventId: event.eventId };
     }
     if (claim.status === 'busy') {
+      log('INFO', 'X delivery deferred because another request holds the lease', {
+        event: 'publisher.delivery.busy',
+        ...eventContext,
+      });
       return { statusCode: 503, outcome: 'busy', eventId: event.eventId };
     }
 
-    const rendered = renderPost(event, publicSiteUrl);
+    log('INFO', 'X delivery started', {
+      event: 'publisher.delivery.started',
+      ...eventContext,
+    });
     try {
+      const rendered = renderPost(event, publicSiteUrl);
       let post = await xClient.findPostByMarker({
         token: rendered.token,
         textMarker: rendered.marker,
@@ -67,12 +89,8 @@ export function createPushHandler({
         reconciled,
       });
       log('INFO', reconciled ? 'Existing X post reconciled' : 'X post published', {
-        requestId,
-        messageId,
-        deliveryAttempt,
-        eventId: event.eventId,
-        frontId: event.frontId,
-        eventType: event.type,
+        event: reconciled ? 'publisher.delivery.reconciled' : 'publisher.delivery.published',
+        ...eventContext,
         postId: post.id,
       });
       return {
@@ -81,21 +99,24 @@ export function createPushHandler({
         eventId: event.eventId,
       };
     } catch (error) {
-      await deliveryStore
-        .markFailed({
+      let stateError = null;
+      try {
+        await deliveryStore.markFailed({
           eventId: event.eventId,
           ownerId: requestId,
           failedAt: iso(now()),
           error: error.message,
-        })
-        .catch(() => {});
+        });
+      } catch (failedStateError) {
+        stateError = failedStateError;
+      }
       log('ERROR', 'X delivery failed', {
-        requestId,
-        messageId,
-        deliveryAttempt,
-        eventId: event.eventId,
+        event: 'publisher.delivery.failed',
+        ...eventContext,
         errorName: error.name,
         errorMessage: error.message,
+        errorStack: error.stack,
+        stateErrorMessage: stateError?.message ?? null,
       });
       return { statusCode: 500, outcome: 'failed', eventId: event.eventId };
     }

@@ -194,3 +194,78 @@ test('a Pub/Sub retry for the same execution drains the outbox without refetchin
   assert.equal(fetches, 1);
   assert.equal(publishAttempts, 2);
 });
+
+test('a refresh logs real data changes, every changed front, and the publication decision', async () => {
+  const logs = [];
+  const publicationEvent = {
+    schemaVersion: 2,
+    eventId: `sha256:${'a'.repeat(64)}`,
+    type: 'pareto.model.moved',
+    fromSnapshot: 'snapshot-previous',
+    toSnapshot: 'snapshot-current',
+    frontId: 'cost-per-task-intelligence',
+    tier: 0,
+    previousTier: null,
+    model: { id: 'model-b', name: 'Model B', metrics: {} },
+    displaced: [],
+    neighbour: null,
+  };
+  const previousModels = {
+    snapshotId: 'snapshot-previous',
+    models: [{ id: 'model-a', intelligence: 9, price: 1, costPerTask: 0.2 }],
+  };
+  const previousPareto = {
+    snapshotId: 'snapshot-previous',
+    fronts: [
+      {
+        frontId: 'cost-per-task-intelligence',
+        objectives: [],
+        tiers: [['model-a'], [], []],
+      },
+      { frontId: 'price-intelligence', objectives: [], tiers: [['model-a'], [], []] },
+    ],
+  };
+
+  await runCollector({
+    executionId: 'execution-audit',
+    leaseSeconds: 900,
+    source: {
+      async fetchModels() {
+        return { models, fetchedAt: '2026-08-14T12:00:00.000Z', pages: 1 };
+      },
+    },
+    storage: {
+      async getJson(path) {
+        return path.endsWith('/models.json') ? previousModels : previousPareto;
+      },
+      async putImmutable() {},
+      async putManifest() {},
+    },
+    state: {
+      async claimExecution() {
+        return { action: 'fetch', previousSnapshotId: 'snapshot-previous' };
+      },
+      async prepareSnapshot() {
+        return { eventCount: 1, events: [publicationEvent] };
+      },
+      async markSnapshotPublished() {},
+      async listPendingEvents() {
+        return [];
+      },
+    },
+    eventBus: { async publish() { throw new Error('nothing to publish'); } },
+    now: () => new Date('2026-08-14T12:00:01.000Z'),
+    log(severity, message, fields) {
+      logs.push({ severity, message, ...fields });
+    },
+  });
+
+  const dataChange = logs.find(({ event }) => event === 'data.refresh.changed');
+  assert.equal(dataChange.changes.addedCount, 1);
+  assert.equal(dataChange.changes.updatedCount, 1);
+  assert.equal(logs.filter(({ event }) => event === 'pareto.front.changed').length, 2);
+  assert.equal(
+    logs.find(({ event }) => event === 'pareto.publication.planned').eventId,
+    publicationEvent.eventId,
+  );
+});

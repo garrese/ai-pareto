@@ -37,4 +37,9 @@ export class LocalSnapshotStore {
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, serialize(body), 'utf8');
   }
+
+  async getJson(objectPath) {
+    const target = this.#resolveObjectPath(objectPath);
+    return JSON.parse(await readFile(target, 'utf8'));
+  }
 }

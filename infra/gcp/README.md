@@ -169,6 +169,52 @@ firebase deploy --project ia-models-analyzer --only hosting:production
 The `production` deploy target in `apps/web/.firebaserc` selects the branded site. The command
 prints the same URL available as the `firebase_hosting_url` Terraform output.
 
+## Inspect operational and publication logs
+
+The collector Job and X publisher service both write structured JSON to standard output. Cloud Run
+ingests those entries into Cloud Logging automatically; no extra log sink or logging service is
+needed. Every application entry has a `component` and a stable `event` field, while related work is
+correlated by `snapshotId`, `eventId`, `messageId`, and `postId` where applicable.
+
+Open **Logging > Logs Explorer** in the Google Cloud console and use these queries. Real model-data
+changes, with added, removed, and field-level updated model details:
+
+```text
+jsonPayload.event="data.refresh.changed"
+```
+
+Changes to any monitored Pareto front, including the unpublished price front and movements that do
+not warrant a post:
+
+```text
+jsonPayload.event="pareto.front.changed"
+```
+
+The complete publication path, from the collector's decision through Pub/Sub to X:
+
+```text
+jsonPayload.event=~"^pareto\\.publication\\.|^publisher\\.delivery\\."
+```
+
+Copy an `eventId` from any of those entries to follow one decision end to end:
+
+```text
+jsonPayload.eventId="sha256:..."
+```
+
+Errors across both components:
+
+```text
+severity>=ERROR
+(jsonPayload.component="collector" OR jsonPayload.component="x-publisher")
+```
+
+Detail arrays are capped at 50 items per category so a wholesale upstream rescore cannot exceed a
+Cloud Logging entry limit. The exact omitted count remains in `omittedDetailCount`; the immutable
+snapshots named by `previousSnapshotId` and `snapshotId` remain the source for a full offline diff.
+The first snapshot in an empty deployment records a baseline; subsequent runs distinguish a new
+snapshot timestamp from actual model-data changes.
+
 ## Safety notes
 
 - Never add a `google_secret_manager_secret_version` containing credentials to this configuration.

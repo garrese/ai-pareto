@@ -103,4 +103,13 @@ export class CloudStorageJsonStore {
   async putManifest(objectPath, body) {
     await this.#upload(objectPath, body, { cacheControl: MANIFEST_CACHE_CONTROL });
   }
+
+  async getJson(objectPath) {
+    const payload = await this.#download(objectPath);
+    try {
+      return JSON.parse(payload);
+    } catch (error) {
+      throw new Error(`Cloud Storage object is not valid JSON: ${objectPath}`, { cause: error });
+    }
+  }
 }

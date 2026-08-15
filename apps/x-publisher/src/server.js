@@ -66,6 +66,7 @@ function start() {
       envelope = await readJson(request);
     } catch (error) {
       structuredLog('WARNING', 'Pub/Sub request body is invalid', {
+        event: 'publisher.request.invalid',
         requestId,
         errorMessage: error.message,
       });
@@ -78,16 +79,21 @@ function start() {
       send(response, result.statusCode);
     } catch (error) {
       structuredLog('ERROR', 'Pub/Sub delivery handler failed', {
+        event: 'publisher.request.failed',
         requestId,
         errorName: error.name,
         errorMessage: error.message,
+        errorStack: error.stack,
       });
       send(response, 500);
     }
   });
 
   server.listen(config.port, () => {
-    structuredLog('INFO', 'X publisher listening', { port: config.port });
+    structuredLog('INFO', 'X publisher listening', {
+      event: 'publisher.service.started',
+      port: config.port,
+    });
   });
 }
 
@@ -95,8 +101,10 @@ try {
   start();
 } catch (error) {
   structuredLog('ERROR', 'X publisher failed to start', {
+    event: 'publisher.service.failed',
     errorName: error.name,
     errorMessage: error.message,
+    errorStack: error.stack,
   });
   process.exitCode = 1;
 }

@@ -248,9 +248,12 @@ fetch.
 
 ## Observability
 
-Structured Cloud Logging entries include `refreshId`, `snapshotId`, `eventId`, `frontId`, and
+Structured Cloud Logging entries include `executionId`, `snapshotId`, `eventId`, `frontId`, and
 `deliveryAttempt` where applicable. Monitoring should alert on:
 
+- normalized model additions, removals, and field-level updates independently of snapshot times;
+- arrivals, exits, promotions, and demotions for every monitored Pareto front;
+- each publication decision from outbox creation through Pub/Sub delivery and the resulting X post;
 - consecutive collector failures;
 - the age of the oldest unacknowledged notification;
 - any message reaching the dead-letter subscription;
