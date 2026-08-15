@@ -121,6 +121,13 @@ meaning with the surface.
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
 
+On desktop it is `clamp(500px, 68vh, 920px)` tall, raised from `clamp(420px, 58vh, 820px)` on
+2026-08-15. The plot was letterboxed at nearly 3:1, which is where the vertical crowding came from;
+it is now 2.3:1 at 1280×820 and names 16 of 17 gold models against 15. The cost is that the chart
+card runs past the fold on a laptop — about 230px of scroll at 820px of viewport, 90px at 1080p —
+and there is no height that both fills a short screen and avoids that, because the header, controls
+and legend above it are already ~450px. The user asked for the height knowing this.
+
 The **vertical scale reserves one label's worth of sky** past the highest and lowest marks — about
 26px, 24 on a phone — on top of the 6% proportional padding. `makeScale`'s `margin` option solves
 `p / (span + 2p) = margin / pixels`, because padding the domain also stretches it and the naive
