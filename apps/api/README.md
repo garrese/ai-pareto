@@ -19,6 +19,9 @@ Fill in `aa.api.key`, then:
 npm start
 ```
 
+On Windows PowerShell, write `npm.cmd` instead of `npm` — see
+[the root README](../../README.md#if-powershell-refuses-to-run-npm) for why.
+
 `npm run dev` restarts on file changes.
 
 Run the collector contract locally with the cached upstream response when one

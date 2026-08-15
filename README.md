@@ -37,6 +37,32 @@ npm start
 Open <http://localhost:8787>. The server hosts the API on `/api/*` and serves the frontend from
 `apps/web`.
 
+### If PowerShell refuses to run npm
+
+On a locked-down Windows machine, `npm` in PowerShell fails with *"No se puede cargar el archivo
+…\npm.ps1 porque la ejecución de scripts está deshabilitada"* (`UnauthorizedAccess`). PowerShell
+resolves the bare name `npm` to the `npm.ps1` shim ahead of `npm.cmd`, and an execution policy of
+`Restricted` blocks any `.ps1`. Node itself is fine — nothing is broken.
+
+Call the batch shim by its full name instead. It is not a script, so no policy applies:
+
+```powershell
+npm.cmd ci
+npm.cmd start
+```
+
+That works with no admin rights and nothing to configure. If you would rather type plain `npm` for
+the rest of a session, lift the policy for that one process — it needs no admin rights either and
+persists nowhere:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+`-Scope CurrentUser` would make it stick, but on a managed machine a domain policy usually
+overrides it. `npm.cmd` is the reliable answer. Git Bash, cmd.exe and VS Code's task runner are all
+unaffected — this is a PowerShell-only wrinkle.
+
 ## Quota and caching
 
 The free tier allows 100 requests per 24-hour window, and one refresh spends one request per page

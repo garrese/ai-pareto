@@ -169,6 +169,15 @@ Guidelines that still apply:
   single-developer repository and does not need feature branches. Create a branch only when the user
   asks for one or when parallel work would make isolation materially safer.
 
+## Windows PowerShell
+
+The user's machine is a managed Windows box with PowerShell's execution policy at `Restricted`.
+PowerShell resolves the bare name `npm` to `npm.ps1` ahead of `npm.cmd`, so `npm ci` dies with
+`UnauthorizedAccess` before Node is ever reached. **Invoke `npm.cmd`** (verified 2026-08-15:
+`npm.cmd --version` returns 11.13.0 under an explicitly `Restricted` policy, `npm` does not).
+Do not tell the user to run `Set-ExecutionPolicy -Scope CurrentUser` — a domain policy can override
+it, and they do not have the rights to argue with it.
+
 ## Conventions
 
 - `.gitignore` deliberately excludes most AI-assistant config (`.claude/`, `.cursor/`, `AGENTS.md`,
