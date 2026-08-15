@@ -40,7 +40,7 @@ Configure the App in the Developer Console with these values:
 - App permissions: **Read and write**
 - App type: **Web App, Automated App or Bot** (confidential client)
 - Callback URI: `http://127.0.0.1:8788/oauth/callback`
-- Website URL: `https://ia-models-analyzer.web.app`
+- Website URL: `https://ai-pareto.web.app`
 
 Copy `config.properties.example` to the ignored `config.properties` and add the App API key and
 secret. During the initial transition, the authorization helper can also read `x.api.key` and

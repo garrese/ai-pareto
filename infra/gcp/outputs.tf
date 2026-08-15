@@ -4,8 +4,12 @@ output "public_data_bucket" {
 }
 
 output "firebase_hosting_url" {
-  description = "Default URL for the static web application."
-  value       = google_firebase_hosting_site.web.default_url
+  description = "Primary public URL for the static web application."
+  value = (
+    local.firebase_site_id == var.project_id
+    ? google_firebase_hosting_site.web.default_url
+    : google_firebase_hosting_site.branded[0].default_url
+  )
 }
 
 output "artifact_repository" {

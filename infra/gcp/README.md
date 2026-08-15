@@ -1,7 +1,7 @@
 # Google Cloud infrastructure
 
 Terraform configuration for the Artificial Analyzer platform. It manages APIs, the Firebase project
-and Hosting site, the public snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics,
+and Hosting sites, the public snapshot bucket, Firestore, Secret Manager metadata, Pub/Sub topics,
 service accounts, IAM, Artifact Registry, the Cloud Run workloads, the collector's four-hour
 schedule, the X push subscription and dead-letter permissions, and an optional billing budget.
 
@@ -61,9 +61,10 @@ terraform apply
 
 With `collector_image = null`, the first apply creates the supporting infrastructure but not the
 Cloud Run Job or Scheduler. The X publisher remains disabled while `publisher_image` and `x_user_id`
-are null. It also enables Firebase on the existing Google Cloud project and creates the default
-Hosting site. The public bucket defaults to `<project-id>-public-data`, and the Hosting site ID
-defaults to the project ID; override either in the local values file if needed.
+are null. It also enables Firebase on the existing Google Cloud project and creates its permanent
+default Hosting site. The public bucket defaults to `<project-id>-public-data`. Set
+`firebase_site_id` to create a separate branded site while retaining the project-ID URL for legacy
+links.
 
 Adding Firebase to a Google Cloud project is permanent. The Hosting site uses an abandon policy so
 removing it from Terraform cannot delete the live site. If either resource already exists, import it
@@ -72,6 +73,7 @@ before applying rather than attempting to recreate it:
 ```bash
 terraform import google_firebase_project.platform projects/ia-models-analyzer
 terraform import google_firebase_hosting_site.web projects/ia-models-analyzer/sites/ia-models-analyzer
+terraform import 'google_firebase_hosting_site.branded[0]' projects/ia-models-analyzer/sites/ai-pareto
 ```
 
 Add the local API key as a Secret Manager version without placing it in Terraform state or command
@@ -129,10 +131,11 @@ release:
 
 ```bash
 cd ../../apps/web
-firebase deploy --project ia-models-analyzer --only hosting
+firebase deploy --project ia-models-analyzer --only hosting:production
 ```
 
-The command prints the same URL available as the `firebase_hosting_url` Terraform output.
+The `production` deploy target in `apps/web/.firebaserc` selects the branded site. The command
+prints the same URL available as the `firebase_hosting_url` Terraform output.
 
 ## Safety notes
 

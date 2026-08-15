@@ -2,10 +2,10 @@ project_id         = "ia-models-analyzer"
 region             = "europe-west1"
 firestore_location = "europe-west1"
 
-# Both default to project-derived globally unique names. Override only if an
-# existing resource already uses one of them.
+# The bucket defaults to a project-derived globally unique name. The branded
+# Hosting site is kept separate from the permanent project-ID site.
 public_data_bucket_name = null
-firebase_site_id        = null
+firebase_site_id        = "ai-pareto"
 
 # Set this locally to enable a billing-account budget. It is not a secret.
 billing_account_id   = null
@@ -20,4 +20,4 @@ collector_image = null
 # the digest-pinned publisher image and the numeric authenticated user ID.
 publisher_image = null
 x_user_id       = null
-public_site_url = null
+public_site_url = "https://ai-pareto.web.app"

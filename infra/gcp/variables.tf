@@ -23,7 +23,7 @@ variable "public_data_bucket_name" {
 }
 
 variable "firebase_site_id" {
-  description = "Globally unique Firebase Hosting site ID; null uses the Google Cloud project ID."
+  description = "Optional globally unique branded Hosting site ID; null serves only the project-ID site."
   type        = string
   default     = null
   nullable    = true
