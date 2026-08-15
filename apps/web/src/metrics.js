@@ -56,9 +56,9 @@ export const METRICS = {
  * `rank` is the compact form the table uses, where a word would widen the column.
  */
 export const TIERS = [
-  { name: 'Gold', rank: '1º', description: 'Pareto front 1' },
-  { name: 'Silver', rank: '2º', description: 'Pareto front 2' },
-  { name: 'Bronze', rank: '3º', description: 'Pareto front 3' },
+  { name: 'Gold', rank: '1st', description: 'Pareto front 1' },
+  { name: 'Silver', rank: '2nd', description: 'Pareto front 2' },
+  { name: 'Bronze', rank: '3rd', description: 'Pareto front 3' },
 ];
 
 export const objectiveFor = (metricKey) => ({

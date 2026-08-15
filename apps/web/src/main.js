@@ -222,7 +222,7 @@ function tableRow(model, tierIndex, matches) {
   if (matches?.has(model.id)) row.className = 'is-match';
 
   // The colour carries the tier; the rank is there so it never rests on
-  // colour alone, and "1º" costs a fraction of the width "Gold" does.
+  // colour alone, and "1st" costs a fraction of the width "Gold" does.
   const tierCell = document.createElement('td');
   const tierLabel = document.createElement('span');
   tierLabel.className = 'tier-cell';
