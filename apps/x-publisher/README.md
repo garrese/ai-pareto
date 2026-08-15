@@ -30,7 +30,7 @@ in one scan means six posts; a digest path exists behind `DIGEST_BURSTS` but is 
 the abstract.
 
 ```
-🥇 GPT-6 (high) enters Pareto front 1
+🥇 GPT-6 (high) joins the top Pareto frontier
    61.2 intelligence · $0.82/task
 Displaces Grok 4.6 (high) (60.9 · $0.8367).
 https://ai-pareto.web.app/?highlight=GPT-6%20%28high%29&e=ddaa419a711f

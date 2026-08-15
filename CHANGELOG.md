@@ -13,6 +13,8 @@ coding agents. Entries use the local project date (`YYYY-MM-DD`), with the newes
 
 ### Changed
 
+- Made movement posts read naturally in English by having arrivals join and promotions move up to
+  named Pareto frontiers.
 - Adopted a `develop` integration branch, dated `feature/` and `fix/` work branches shared by all
   AI coding agents, and a stable `main` branch for releases and deployments.
 - Renamed the chart-label control to "Relevant model names" to make its selective behaviour clear.

@@ -52,7 +52,7 @@ test('the common case reads as the agreed template', () => {
   assert.equal(
     text,
     [
-      '🥇 GPT-6 (high) enters Pareto front 1',
+      '🥇 GPT-6 (high) joins the top Pareto frontier',
       '   61.2 intelligence · $0.82/task',
       'Displaces Grok 4.6 (high) (60.9 · $0.8367).',
       `${SITE}/?highlight=GPT-6%20%28high%29&e=${eventToken(EVENT_ID)}`,
@@ -97,7 +97,7 @@ test('numbers are formatted exactly as the site formats them', () => {
   assert.match(text, /\(47\.2 · \$3\.14\)/);
 });
 
-test('a promotion says which front it climbed from', () => {
+test('a promotion says which frontier it moves up to', () => {
   const { text } = renderPost(
     move({
       previousTier: 1,
@@ -107,7 +107,7 @@ test('a promotion says which front it climbed from', () => {
     SITE,
   );
 
-  assert.match(text, /^🥇 Kimi K3 \(max\) climbs from front 2 to front 1$/m);
+  assert.match(text, /^🥇 Kimi K3 \(max\) moves up to the top Pareto frontier$/m);
   assert.match(text, /Displaces 2 models, .+ among them\./);
   assert.ok(fits(text));
 });
@@ -123,7 +123,7 @@ test('an arrival that displaced nobody points at the model ahead of it', () => {
     SITE,
   );
 
-  assert.match(text, /^🥉 Mistral Large 4 enters Pareto front 3$/m);
+  assert.match(text, /^🥉 Mistral Large 4 joins the third Pareto frontier$/m);
   assert.match(text, /^Sits just under Gemini 3\.7 Flash \(low\)\.$/m);
 });
 
