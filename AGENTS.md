@@ -281,10 +281,11 @@ Guidelines that still apply:
     `main`, and return to `develop` after completing the release.
 - **One logical change per commit.** A backend change and a frontend change in the same turn are two
   commits, not one. Don't bundle unrelated work to save a commit.
-- **Update [`CHANGELOG.md`](CHANGELOG.md) with every completed evolution.** Add a concise entry under
-  the current local date (`YYYY-MM-DD`), newest date first, and use an `Added`, `Changed`, `Fixed`,
-  or `Removed` subsection as appropriate. Record the outcome and reason when useful, not a list of
-  touched files. Include the changelog update in the evolution's commit.
+- **Update [`CHANGELOG.md`](CHANGELOG.md) with every completed evolution.** Add a concise, unclassified
+  bullet under the current local date (`YYYY-MM-DD`), newest date first. Do not split entries into
+  `Added`, `Changed`, `Fixed`, or `Removed` subsections: every entry is simply a change. Record the
+  outcome and reason when useful, not a list of touched files. Include the changelog update in the
+  evolution's commit.
 - **Never commit a secret.** Before every commit, sanity-check that `apps/api/config.properties`,
   `.cache/`, `.claude/` are not staged — `git status --short` should not show them, and
   `git check-ignore` should. If a check ever fails, stop and say so rather than committing anyway.
