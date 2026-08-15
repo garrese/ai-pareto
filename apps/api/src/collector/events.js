@@ -1,5 +1,5 @@
 import { sha256 } from './canonical.js';
-import { MAX_POSTS_PER_SCAN } from './definitions.js';
+import { DIGEST_BURSTS, MAX_POSTS_PER_SCAN } from './definitions.js';
 
 const EVENT_SCHEMA_VERSION = 2;
 const MOVE_TYPE = 'pareto.model.moved';
@@ -92,6 +92,14 @@ function moveEvents({ definition, previous, current, models, occurredAt, previou
       .filter((other) => other && dominates(model, other, objectives));
 
     const neighbour = displaced.length === 0 ? neighbourAhead(model, destination, objectives) : null;
+    // Best first, so "Displaces 3 models, X among them" names the most notable
+    // casualty rather than whichever UUID happened to sort first. The ID is the
+    // tiebreak, so the choice stays deterministic when two models tie.
+    const up = objectives.find(({ dir }) => dir === 'max') ?? objectives[0];
+    displaced.sort(
+      (left, right) => (right[up.key] ?? -Infinity) - (left[up.key] ?? -Infinity) ||
+        left.id.localeCompare(right.id),
+    );
 
     const identity = {
       schemaVersion: EVENT_SCHEMA_VERSION,
@@ -115,9 +123,7 @@ function moveEvents({ definition, previous, current, models, occurredAt, previou
       tier,
       previousTier,
       model: describe(model, objectives),
-      displaced: displaced
-        .map((other) => describe(other, objectives))
-        .sort((left, right) => left.id.localeCompare(right.id)),
+      displaced: displaced.map((other) => describe(other, objectives)),
       neighbour: neighbour ? describe(neighbour, objectives) : null,
     });
   }
@@ -180,6 +186,7 @@ export function createParetoChangeEvents({
   models = [],
   definitions = [],
   occurredAt,
+  digestBursts = DIGEST_BURSTS,
   maxPosts = MAX_POSTS_PER_SCAN,
 }) {
   if (!current?.snapshotId) throw new Error('The current Pareto document requires a snapshotId');
@@ -210,6 +217,6 @@ export function createParetoChangeEvents({
     .sort((left, right) => left.frontId.localeCompare(right.frontId) || left.tier - right.tier);
 
   if (moves.length === 0) return [];
-  if (moves.length <= maxPosts) return moves;
+  if (!digestBursts || moves.length <= maxPosts) return moves;
   return [digestEvent(moves, { previous, current, occurredAt })];
 }

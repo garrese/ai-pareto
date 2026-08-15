@@ -185,9 +185,15 @@ widen any of this without being asked.
 - **Only `cost-per-task-intelligence` is published.** `price-intelligence` stays monitored but
   unpublished — 380 models against 136, so it moves far more often. `published: true` in
   `definitions.js` is the switch.
-- **One post per movement, with a burst cap.** Above `MAX_POSTS_PER_SCAN` the scan collapses into a
-  single digest. A four-hour scan normally yields zero or one; a burst means Artificial Analysis
-  re-scored the catalogue.
+- **One post per movement, always.** `DIGEST_BURSTS` is off (2026-08-15): six arrivals in one scan
+  means six posts. The digest path is kept working and under test behind that flag in case the
+  volume ever becomes a problem — do not delete it, and do not switch it on unasked.
+- **Order of evaluation does not matter and must not start to.** Each event is a pure function of
+  (before, after, model, objectives) — no sequencing, no mutation between events — and a permutation
+  test pins that down. Two arrivals that both beat the same model will both name it; both
+  statements are true, and attribution is deliberately not made exclusive.
+- **The displaced model named in a post is the strongest one**, by the maximised objective, with the
+  ID as tiebreak. It used to be whichever UUID sorted first, which was arbitrary.
 - **Template B**, agreed after comparing four. Headline with medal, indented metrics, relation line.
   When it will not fit, detail is dropped in a fixed order — the displaced model's numbers, then the
   subject's, then names are truncated. Names are never cut while a number could go instead.

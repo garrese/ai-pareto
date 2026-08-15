@@ -33,9 +33,20 @@ export const MONITORED_PARETO_FRONTS = [
 export const TIER_COUNT = 3;
 
 /**
- * Above this many publishable movements in a single scan, the collector emits
- * one digest instead of the individual posts. A normal four-hour scan yields
- * zero or one; a burst means Artificial Analysis re-scored the catalogue, and
- * nobody wants twenty near-identical posts in one minute.
+ * Whether a burst collapses into a single digest post instead of one post per
+ * movement.
+ *
+ * **Off** since 2026-08-15 at the user's request: every arrival and every
+ * promotion gets its own post, however many land in one scan. The digest path
+ * is deliberately kept alive rather than deleted — `digestEvent` in `events.js`
+ * and `digestLines` in `render.js`, both still under test — so switching back
+ * is this one line.
+ */
+export const DIGEST_BURSTS = false;
+
+/**
+ * How many movements a scan may publish individually before the digest takes
+ * over, when `DIGEST_BURSTS` is on. A normal four-hour scan yields zero or one;
+ * a burst means Artificial Analysis re-scored the catalogue wholesale.
  */
 export const MAX_POSTS_PER_SCAN = 4;

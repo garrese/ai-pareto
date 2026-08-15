@@ -16,9 +16,10 @@ the duplicate window but cannot justify a distributed exactly-once guarantee.
 
 One post per model that **arrives** in one of the three Pareto fronts or **climbs** to a better one.
 Demotions are silent — they are the wake of an arrival, and the models pushed out are already named
-in the post that pushed them. Only the `cost-per-task-intelligence` front is published. Above four
-movements in one scan the collector sends a digest instead. See `AGENTS.md` for why each of those
-rules exists; they were chosen against the real dataset, not in the abstract.
+in the post that pushed them. Only the `cost-per-task-intelligence` front is published. Six arrivals
+in one scan means six posts; a digest path exists behind `DIGEST_BURSTS` but is switched off. See
+`AGENTS.md` for why each of those rules exists; they were chosen against the real dataset, not in
+the abstract.
 
 ```
 🥇 GPT-6 (high) enters Pareto front 1

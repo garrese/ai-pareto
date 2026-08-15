@@ -190,13 +190,93 @@ test('identical movements are idempotent across reruns, and differ when the fron
   assert.notEqual(other.eventId, first.eventId);
 });
 
+test('several arrivals in one scan do not depend on the order the models arrive in', () => {
+  // The three beat `victim` on both axes but not each other, so all three land
+  // in the same front together — the case where an ordering bug would show.
+  const models = [
+    model('victim', 50, 0.9),
+    model('cheap', 51, 0.2),
+    model('middle', 55, 0.5),
+    model('rich', 60, 0.8),
+  ];
+  const before = document('before', [['victim']]);
+  const after = document('after', [['cheap', 'middle', 'rich']]);
+
+  const signature = (order) =>
+    JSON.stringify(
+      run(before, after, order).map((event) => [
+        event.eventId,
+        event.model.name,
+        event.displaced.map(({ name }) => name),
+      ]),
+    );
+
+  const permutations = [
+    [0, 1, 2, 3],
+    [3, 2, 1, 0],
+    [1, 3, 0, 2],
+    [2, 0, 3, 1],
+  ].map((indexes) => indexes.map((index) => models[index]));
+
+  const results = new Set(permutations.map(signature));
+  assert.equal(results.size, 1, 'the same scan produced different events for different input order');
+  assert.equal(run(before, after, models).length, 3);
+});
+
+test('the displaced model named in the post is the strongest one, not the first by ID', () => {
+  const models = [
+    model('winner', 70, 0.1),
+    model('aaa-weak', 40, 0.5),
+    model('zzz-strong', 65, 0.6),
+    model('mmm-middle', 55, 0.7),
+  ];
+  const [event] = run(
+    document('before', [['aaa-weak', 'zzz-strong', 'mmm-middle']]),
+    document('after', [['winner']]),
+    models,
+  );
+
+  assert.deepEqual(
+    event.displaced.map(({ name }) => name),
+    ['ZZZ-STRONG', 'MMM-MIDDLE', 'AAA-WEAK'],
+  );
+});
+
+test('two arrivals that both beat the same model may both name it', () => {
+  // Both statements are true — each really does beat `victim` on both axes —
+  // so neither post is wrong. Attribution is not made exclusive on purpose.
+  const models = [model('victim', 50, 0.9), model('cheap', 51, 0.2), model('rich', 60, 0.8)];
+  const events = run(
+    document('before', [['victim']]),
+    document('after', [['cheap', 'rich']]),
+    models,
+  );
+
+  assert.equal(events.length, 2);
+  assert.ok(events.every((event) => event.displaced.some(({ name }) => name === 'VICTIM')));
+});
+
+test('by default a burst publishes one post per movement', () => {
+  const models = Array.from({ length: 7 }, (_, index) => model(`m${index}`, 40 + index, 0.9 - index * 0.1));
+  const events = run(
+    document('before', [['m0'], [], []]),
+    document('after', [['m1', 'm2', 'm3'], ['m4', 'm5'], ['m6']]),
+    models,
+  );
+
+  assert.equal(events.length, 6);
+  assert.ok(events.every((event) => event.type === 'pareto.model.moved'));
+});
+
+// The digest path is switched off (DIGEST_BURSTS) but kept working, so these
+// two opt in explicitly. If it is ever switched back on, they already cover it.
 test('a burst collapses into one digest instead of a wall of posts', () => {
   const models = Array.from({ length: 6 }, (_, index) => model(`m${index}`, 40 + index, 0.9 - index * 0.1));
   const events = run(
     document('before', [['m0'], [], []]),
     document('after', [['m1', 'm2', 'm3'], ['m4', 'm5'], []]),
     models,
-    { maxPosts: 4 },
+    { maxPosts: 4, digestBursts: true },
   );
 
   assert.equal(events.length, 1);
@@ -214,7 +294,7 @@ test('a batch at exactly the cap is still published individually', () => {
     document('before', [['m0'], [], []]),
     document('after', [['m1', 'm2'], ['m3', 'm4'], []]),
     models,
-    { maxPosts: 4 },
+    { maxPosts: 4, digestBursts: true },
   );
 
   assert.equal(events.length, 4);
