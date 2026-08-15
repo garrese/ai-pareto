@@ -1,4 +1,4 @@
-# Artificial Analyzer
+# AI Pareto
 
 Charts the [Artificial Analysis](https://artificialanalysis.ai) language-model dataset as **Pareto
 tiers**: the first four Pareto fronts over any two of intelligence, price, speed and latency.
