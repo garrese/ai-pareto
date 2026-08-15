@@ -92,7 +92,8 @@ included in an API response — the 401 body is echoed in `warning`, and it does
 ## Brand
 
 The project and its X bot use **AI Pareto Radar** as their primary name. The preferred X handle is
-`@AIParetoRadar`, subject to availability. The brand describes data-driven comparisons of AI models
+`@AIParetoRadar`, subject to availability. The **page** is titled just **AI Pareto** (2026-08-15):
+"Radar" is what the bot does — watch and report — and the page does not watch, it plots. The brand describes data-driven comparisons of AI models
 across intelligence, speed, and cost, with a focus on Pareto frontiers. Keep public-facing brand copy
 in English unless the user explicitly requests a localized variant.
 
@@ -119,6 +120,35 @@ meaning with the surface.
 
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
+
+### Names on the plot
+
+Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
+
+- **Idle, the best front on show is named** — gold normally, silver if gold is filtered out, and so
+  on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
+  the labels instead**, whatever tier they are in, so the answer to the query is the only thing
+  spelled out.
+- Placement is greedy over rings of candidate offsets. Two rules: a label may never overlap another
+  label or leave the plot (hard — a target with no slot goes unnamed, because a name in the wrong
+  place is worse than no name), and it should not cover other marks (soft, since the halo keeps it
+  legible either way). On the default view that names 15 of the 17 gold models with zero overlaps;
+  the two it drops are the longest names in the tightest corner.
+- Targets are served **most-crowded-first**. Left-to-right names exactly as many but pushes them
+  further out — 230px of leader line against 183, worst case 66px against 41.
+- **Phones get no idle labels** (`compact`), only search ones. A dozen names do not fit in 353px,
+  and the tooltip still reaches every model.
+- The label halo is a `paint-order: stroke` outline in `--surface-1`. Labels cross the dominated
+  cloud and are unreadable over it without one.
+
+### Dimming while searching
+
+A search that matches nothing **dims nothing** — there is no match to look at, so greying the plot
+would only punish the typing. `is-searching` is set from `matches.size > 0`, not from `matches`.
+
+Matches recede the rest of the plot rather than erasing it: 0.12 opacity was tried and the fronts
+disappeared. The dominated cloud (0.22) and the tiers (0.38) dim by different amounts so the
+ranking still reads through the dimming.
 
 ## Small screens
 

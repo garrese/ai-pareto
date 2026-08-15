@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Pareto Radar — language model Pareto tiers</title>
+    <!-- "Radar" is the bot's name, not the page's: the page does not watch, it
+         plots. Keep the tab title short — it is what a bookmark shows. -->
+    <title>AI Pareto</title>
     <!-- No og:/twitter: tags on purpose (2026-08-15): the user looked at what a
          preview card does to a post and preferred the bare URL. Adding them back
          changes how every bot post renders, so ask first. -->
@@ -12,12 +14,22 @@
   <body>
     <main class="page">
       <header class="page-header">
-        <h1>Language model Pareto tiers</h1>
+        <h1>Language model Pareto fronts</h1>
         <p class="subtitle">
           The first three Pareto fronts over Artificial Analysis text-model data. Each front is the
           set of models nothing else beats on both axes at once.
         </p>
-        <p class="meta" id="meta" role="status">Loading…</p>
+        <!-- High in the page on purpose: the bot and the source are the two places
+             a reader goes next, and at footnote size nobody ever saw them. -->
+        <p class="header-links">
+          <a class="header-link" href="https://x.com/AIParetoRadar" rel="noreferrer noopener"
+            >@AIParetoRadar on X</a
+          >
+          <a class="header-link" href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener"
+            >Source on GitHub</a
+          >
+          <span class="header-links-note">The bot posts whenever a Pareto front changes.</span>
+        </p>
       </header>
 
       <!-- The view switch stays outside the collapsible filters: on a phone it is
@@ -149,11 +161,9 @@
           reasoning model can be cheap per token and expensive per task. Models are only plotted on
           axes they have measurements for.
         </p>
-        <p class="footer-links">
-          <a href="https://x.com/AIParetoRadar" rel="noreferrer noopener">@AIParetoRadar on X</a>
-          — the bot that posts when the Pareto front changes.
-          <a href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener">Source on GitHub</a>.
-        </p>
+        <!-- Provenance closes the page rather than opening it: it answers a
+             question the reader only has after looking at the data. -->
+        <p class="meta" id="meta" role="status">Loading…</p>
       </footer>
     </main>
 

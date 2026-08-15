@@ -101,6 +101,35 @@ body {
   color: var(--text-secondary);
 }
 
+/* ── Header links ────────────────────────────────────────────────────────── */
+
+.header-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 14px 0 0;
+  font-size: 0.92rem;
+}
+
+.header-link {
+  padding: 5px 12px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-weight: 600;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.header-link:hover {
+  border-color: var(--baseline);
+}
+
+.header-links-note {
+  color: var(--text-secondary);
+}
+
 .meta {
   margin: 12px 0 0;
   font-size: 0.85rem;
@@ -448,15 +477,21 @@ body {
 .front-line.tier-2 { stroke: var(--tier-2); }
 
 /* Search emphasis: matches keep their tier colour and gain an ink ring;
-   everything else recedes. Identity is never carried by the ring alone —
-   the legend and the table stay in sync. */
-.is-searching .mark-rest circle,
+   everything else recedes. It recedes rather than disappears — a match is only
+   informative against the field it sits in, so the fronts stay readable behind
+   it (2026-08-15: 0.12 erased them). The two figures differ so the tiers still
+   read as ranked above the dominated cloud while dimmed. Identity is never
+   carried by the ring alone — the legend and the table stay in sync. */
+.is-searching .mark-rest circle {
+  opacity: 0.22;
+}
+
 .is-searching .mark-tier circle {
-  opacity: 0.12;
+  opacity: 0.38;
 }
 
 .is-searching .front-line {
-  opacity: 0.25;
+  opacity: 0.42;
 }
 
 .is-searching circle.is-match {
@@ -467,6 +502,28 @@ body {
 
 .is-searching .mark-rest circle.is-match {
   r: 5;
+}
+
+/* Names sit clear of their mark with a hairline pointing back at it, so the
+   label never covers the datum it describes. The halo is a stroke painted
+   under the fill: labels cross the dominated cloud and would otherwise be
+   unreadable over it. */
+.mark-label {
+  pointer-events: none;
+}
+
+.mark-label text {
+  fill: var(--text-primary);
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+
+.mark-label line {
+  stroke: var(--baseline);
+  stroke-width: 1;
 }
 
 .hover-ring {
@@ -620,13 +677,8 @@ body {
   color: inherit;
 }
 
-.footer-links {
+.page-footer .meta {
   margin-bottom: 0;
-}
-
-.footer-links a {
-  color: var(--text-secondary);
-  white-space: nowrap;
 }
 
 @media (max-width: 720px) {
@@ -647,6 +699,18 @@ body {
 
   .meta {
     margin-top: 6px;
+  }
+
+  /* The links keep their weight but give up the explanatory line: on a phone
+     every row above the plot is a row the plot does not get. */
+  .header-links {
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+  }
+
+  .header-links-note {
+    display: none;
   }
 
   .toolbar {
@@ -796,10 +860,6 @@ body {
   .page-footer {
     margin-top: 16px;
   }
-
-  .footer-links a {
-    white-space: normal;
-  }
 }
 
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 960px) {
@@ -821,6 +881,16 @@ body {
 
   .meta {
     margin-top: 3px;
+  }
+
+  .header-links {
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 0.82rem;
+  }
+
+  .header-links-note {
+    display: none;
   }
 
   .toolbar {

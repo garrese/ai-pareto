@@ -15,6 +15,34 @@ const WIDE_PAD = { top: 12, right: 20, bottom: 34 };
 /** Tick labels are 11px tabular figures, so every glyph is the same width. */
 const TICK_CHAR_WIDTH = 6.3;
 
+/** Model-name labels: 11px proportional, so this is only a fallback estimate. */
+const LABEL_CHAR_WIDTH = 5.9;
+const LABEL_HEIGHT = 13;
+/** Keeps neighbouring labels from touching, and the leader lines apart. */
+const LABEL_GAP = 3;
+/**
+ * Placement is tried in this order, nearest ring first, so a label lands as
+ * close to its mark as the crowd allows. `dx`/`dy` are a unit direction.
+ */
+const LABEL_DIRECTIONS = [
+  { dx: 0, dy: -1, anchor: 'middle' },
+  { dx: 0, dy: 1, anchor: 'middle' },
+  { dx: 1, dy: 0, anchor: 'start' },
+  { dx: -1, dy: 0, anchor: 'end' },
+  { dx: 0.72, dy: -0.72, anchor: 'start' },
+  { dx: -0.72, dy: -0.72, anchor: 'end' },
+  { dx: 0.72, dy: 0.72, anchor: 'start' },
+  { dx: -0.72, dy: 0.72, anchor: 'end' },
+];
+/**
+ * The outermost ring earns its long leader: without it the three longest names
+ * in the crowded corner of the default view go unlabelled.
+ */
+const LABEL_RINGS = [18, 28, 40, 56, 78];
+const COMPACT_LABEL_RINGS = [15, 23, 33, 46, 62];
+/** A hard ceiling on labels, so a search for "gpt" cannot carpet the plot. */
+const LABEL_LIMIT = 26;
+
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
@@ -74,6 +102,118 @@ function logTicks(lo, hi, target = 7) {
       ),
     ),
   ];
+}
+
+// ── labels ───────────────────────────────────────────────────────────────────
+
+const overlaps = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** The box a label would occupy if placed in `direction` at `ring` pixels out. */
+function labelBox(target, direction, ring, width) {
+  const cx = target.px + direction.dx * ring;
+  const cy = target.py + direction.dy * ring;
+  const x0 =
+    direction.anchor === 'middle' ? cx - width / 2 : direction.anchor === 'start' ? cx : cx - width;
+  return { cx, cy, x0, x1: x0 + width, y0: cy - LABEL_HEIGHT / 2, y1: cy + LABEL_HEIGHT / 2 };
+}
+
+const padded = (box) => ({
+  x0: box.x0 - LABEL_GAP,
+  x1: box.x1 + LABEL_GAP,
+  y0: box.y0 - LABEL_GAP,
+  y1: box.y1 + LABEL_GAP,
+});
+
+/**
+ * Names marks the way Artificial Analysis does: the label sits clear of its dot
+ * with a hairline pointing back at it, rather than on top of it.
+ *
+ * Placement is greedy — targets are served in the order given, and each takes
+ * the nearest free slot. Two rules decide "free": a label may never overlap a
+ * label already placed or leave the plot (hard, and a target with no such slot
+ * simply goes unnamed — a wrong name is worse than no name), and it should not
+ * cover other marks (soft, since the halo keeps it legible either way).
+ *
+ * @param {object} options
+ * @param {SVGElement} options.svg   must already be in the document: widths are measured
+ * @param {any[]} options.targets    positions to name, most important first
+ * @param {any[]} options.obstacles  every plotted position, labelled or not
+ */
+function drawLabels({ svg, targets, obstacles, plot, compact }) {
+  if (targets.length === 0) return;
+
+  const group = el('g', { class: 'mark-label' });
+  svg.append(group);
+
+  const rings = compact ? COMPACT_LABEL_RINGS : LABEL_RINGS;
+  const placed = [];
+
+  for (const target of targets) {
+    const text = el('text', { 'text-anchor': 'middle' });
+    text.textContent = target.model.name;
+    group.append(text);
+
+    // getComputedTextLength needs a laid-out subtree; a hidden card gives 0.
+    const measured = text.getComputedTextLength?.() ?? 0;
+    const width = measured || target.model.name.length * LABEL_CHAR_WIDTH;
+
+    // Only marks that could plausibly fall under this label are worth testing.
+    const near = obstacles.filter(
+      (p) => Math.abs(p.px - target.px) < 90 && Math.abs(p.py - target.py) < 60,
+    );
+
+    let best = null;
+    for (const ring of rings) {
+      for (const direction of LABEL_DIRECTIONS) {
+        const box = labelBox(target, direction, ring, width);
+        if (box.x0 < plot.x || box.x1 > plot.x + plot.width) continue;
+        if (box.y0 < plot.y || box.y1 > plot.y + plot.height) continue;
+        const grown = padded(box);
+        if (placed.some((other) => overlaps(other, grown))) continue;
+
+        const covered = near.filter(
+          (p) => p.px > grown.x0 && p.px < grown.x1 && p.py > grown.y0 && p.py < grown.y1,
+        ).length;
+        if (covered === 0) {
+          best = { direction, box, grown };
+          break;
+        }
+        if (!best || covered < best.covered) best = { direction, box, grown, covered };
+      }
+      if (best && best.covered === undefined) break;
+    }
+
+    if (!best) {
+      text.remove();
+      continue;
+    }
+
+    placed.push(best.grown);
+    text.setAttribute('x', best.box.cx);
+    // 11px glyphs are ~8px tall, so this sits the ink on the box's centre line.
+    text.setAttribute('y', best.box.cy + 4);
+    text.setAttribute('text-anchor', best.direction.anchor);
+
+    // The leader runs from the edge of the mark to the nearest point of the
+    // box, so it reads as a pointer and never crosses the text.
+    const ax = clamp(target.px, best.box.x0, best.box.x1);
+    const ay = clamp(target.py, best.box.y0, best.box.y1);
+    const length = Math.hypot(ax - target.px, ay - target.py);
+    if (length > 10) {
+      const ux = (ax - target.px) / length;
+      const uy = (ay - target.py) / length;
+      group.insertBefore(
+        el('line', {
+          x1: target.px + ux * 7,
+          y1: target.py + uy * 7,
+          x2: target.px + ux * (length - 2),
+          y2: target.py + uy * (length - 2),
+        }),
+        group.firstChild,
+      );
+    }
+  }
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
@@ -189,7 +329,13 @@ export function renderChart({
       `${xMetric.axisLabel} against ${yMetric.axisLabel}, ` +
       `with the first ${fronts.length} Pareto fronts highlighted. A table view lists the same data.`,
   });
-  if (matches) svg.classList.add('is-searching');
+  // A search that finds nothing dims nothing: there is no match to look at, so
+  // greying the plot would only punish the typing.
+  const searching = Boolean(matches && matches.size > 0);
+  if (searching) svg.classList.add('is-searching');
+
+  // In the document from here on, because label widths have to be measured.
+  viewport.append(svg);
 
   // Grid + axes -------------------------------------------------------------
   const grid = el('g', { class: 'grid' });
@@ -279,15 +425,57 @@ export function renderChart({
     svg.append(group);
   });
 
-  // Hover layer -------------------------------------------------------------
-  const highlight = el('circle', { class: 'hover-ring', r: 9, opacity: 0 });
-  svg.append(highlight);
-
   const positions = plotted.map((model) => ({
     model,
     px: x.map(model[xMetric.key]),
     py: y.map(model[yMetric.key]),
   }));
+
+  // Names -------------------------------------------------------------------
+  // Idle, the best front on show is named — that row of models is what the page
+  // exists to point at, and the dominated cloud never gets a name because there
+  // are hundreds of it. A search takes the labels over: only what matched is
+  // named, so the answer to the query is the only thing spelled out.
+  let labelled = [];
+  if (searching) {
+    labelled = positions
+      .filter((p) => matches.has(p.model.id))
+      // Ranked models are named first, so they win the space when it runs short.
+      .sort(
+        (a, b) =>
+          (tierOf.get(a.model.id) ?? fronts.length) - (tierOf.get(b.model.id) ?? fronts.length) ||
+          a.px - b.px,
+      );
+  } else if (!compact) {
+    // A phone has no room for a dozen names; the tooltip still reaches them.
+    const topTier = fronts.findIndex((front, index) => shows(index) && front.length > 0);
+    if (topTier !== -1) {
+      labelled = positions.filter((p) => tierOf.get(p.model.id) === topTier);
+      // Most hemmed-in first. Placement is greedy, so whoever goes first takes
+      // the closest slot — and a model with room to spare can afford to be
+      // served late, while one in the crowd cannot. Left-to-right order names
+      // just as many but pushes them further out: 230px of leader line against
+      // 183, worst case 66px against 41, on the default view.
+      const crowding = new Map(
+        labelled.map((p) => [
+          p.model.id,
+          labelled.filter((q) => Math.hypot(q.px - p.px, q.py - p.py) < 130).length,
+        ]),
+      );
+      labelled.sort((a, b) => crowding.get(b.model.id) - crowding.get(a.model.id) || a.px - b.px);
+    }
+  }
+  drawLabels({
+    svg,
+    targets: labelled.slice(0, LABEL_LIMIT),
+    obstacles: positions,
+    plot,
+    compact,
+  });
+
+  // Hover layer -------------------------------------------------------------
+  const highlight = el('circle', { class: 'hover-ring', r: 9, opacity: 0 });
+  svg.append(highlight);
 
   const surface = el('rect', {
     x: plot.x,
@@ -329,5 +517,4 @@ export function renderChart({
   });
 
   svg.append(surface);
-  viewport.append(svg);
 }
