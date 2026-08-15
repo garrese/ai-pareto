@@ -12,6 +12,14 @@ where X accepts a post but the service stops before Firestore records the return
 X does not provide a downstream idempotency key for this endpoint. Timeline reconciliation narrows
 the duplicate window but cannot justify a distributed exactly-once guarantee.
 
+**The timeline read is eventually consistent.** Verified against the live API on 2026-08-15: a post
+published seconds earlier was not yet returned by `GET /2/users/:id/tweets`, and the same marker was
+found on a later read. Reconciliation therefore cannot catch a retry that arrives immediately — the
+Firestore delivery claim is what makes redelivery safe, and reconciliation only covers the narrower
+case where the process died between X accepting the post and Firestore recording its ID. A retry
+inside that window may still attempt a create and be refused by X with `403` and "duplicate
+content"; the next retry, by which time the timeline has caught up, reconciles and acknowledges.
+
 ## What gets posted
 
 One post per model that **arrives** in one of the three Pareto fronts or **climbs** to a better one.

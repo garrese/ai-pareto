@@ -202,6 +202,12 @@ widen any of this without being asked.
 - `apps/x-publisher/scripts/publish-sample.mjs` rehearses the whole path against the real cache and
   is a dry run unless given `--confirm`.
 
+First real post went out 2026-08-15 (`2088539843328463335`), which established two things against
+the live API. OAuth 1.0a and the timeline read both work on the current plan. And the timeline read
+is **eventually consistent** — a post made seconds earlier was not in it, so `findPostByMarker`
+cannot catch an immediate retry. The Firestore claim is the real idempotency guarantee;
+reconciliation is the narrower backstop. Do not describe it as preventing duplicates outright.
+
 Number formatting is duplicated between `apps/web/src/metrics.js` and `apps/x-publisher/src/render.js`
 because the two apps share no code. A post and the page it links to must show identical figures —
 change one, change the other.

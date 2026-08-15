@@ -139,8 +139,23 @@ async function main() {
     return;
   }
 
-  const post = await client.createPost(text);
-  console.log(`\nPublished as ${post.id} → https://x.com/i/status/${post.id}`);
+  try {
+    const post = await client.createPost(text);
+    console.log(`\nPublished as ${post.id} → https://x.com/i/status/${post.id}`);
+  } catch (error) {
+    // The timeline read above is eventually consistent: a post made seconds ago
+    // is not in it yet, so the marker check can miss a post that does exist.
+    // X's own duplicate-content rule is the backstop, and hitting it means the
+    // post is already up — not that anything went wrong.
+    if (error.status === 403 && /duplicate content/i.test(error.message)) {
+      console.log(
+        '\nX rejected this as duplicate content, so it is already published — the timeline ' +
+          'read simply had not caught up yet. Nothing was posted twice.',
+      );
+      return;
+    }
+    throw error;
+  }
 }
 
 await main();
