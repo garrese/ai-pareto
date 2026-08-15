@@ -121,12 +121,19 @@ meaning with the surface.
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
 
-On desktop it is `clamp(500px, 68vh, 920px)` tall, raised from `clamp(420px, 58vh, 820px)` on
-2026-08-15. The plot was letterboxed at nearly 3:1, which is where the vertical crowding came from;
-it is now 2.3:1 at 1280×820 and names 16 of 17 gold models against 15. The cost is that the chart
-card runs past the fold on a laptop — about 230px of scroll at 820px of viewport, 90px at 1080p —
-and there is no height that both fills a short screen and avoids that, because the header, controls
-and legend above it are already ~450px. The user asked for the height knowing this.
+On desktop it is `clamp(560px, 72vh, 960px)` tall, raised twice on 2026-08-15 from
+`clamp(420px, 58vh, 820px)`. The plot was letterboxed at nearly 3:1, which is where the vertical
+crowding came from; it is now ~2.5:1 and names 16 of 17 gold models against 15.
+
+**On a small laptop the floor is what binds, not the `vh` term** — at 640px of viewport `72vh` is
+461px, so the chart is 560. Raise the floor, not the percentage, when the ask is "taller on a small
+screen".
+
+The cost is that the chart card runs well past the fold there: at 1366×640 it starts 412px down, of
+which the filters row alone is 147px because it wraps to two lines at that width. No height fixes
+that — **folding the filters on short screens regardless of width would**, and it has been offered
+to the user but not done. The `(max-height: 500px)` fold is gated behind `max-width: 960px` today,
+so a 1366×640 laptop lays every filter out.
 
 The **vertical scale reserves one label's worth of sky** past the highest and lowest marks — about
 26px, 24 on a phone — on top of the 6% proportional padding. `makeScale`'s `margin` option solves

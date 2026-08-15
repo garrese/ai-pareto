@@ -400,7 +400,7 @@ body {
 /* The chart is sized in CSS pixels and re-rendered on resize, so it fills wide
    displays instead of topping out at a fixed width. */
 .chart {
-  height: clamp(500px, 68vh, 920px);
+  height: clamp(560px, 72vh, 960px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 4px;
