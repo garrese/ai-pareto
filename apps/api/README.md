@@ -163,6 +163,7 @@ stored in the image or configured through `GOOGLE_APPLICATION_CREDENTIALS`.
 | --- | --- | --- |
 | `GOOGLE_CLOUD_PROJECT` or `GCP_PROJECT_ID` | Yes | Google Cloud project identifier. |
 | `PUBLIC_DATA_BUCKET` | Yes | Dedicated bucket for generated public JSON. |
+| `COLLECTOR_DIAGNOSTICS_BUCKET` | Yes | Private bucket for rejected upstream payloads. |
 | `AA_API_KEY` | Yes | Secret Manager value exposed only to the job process. |
 | `PARETO_TOPIC` | No | Pub/Sub topic; defaults to `pareto-change-events`. |
 | `COLLECTOR_LEASE_SECONDS` | No | Firestore execution lease; defaults to 900 seconds. |
@@ -172,6 +173,14 @@ The job must be configured with exactly one task. Firestore prevents overlapping
 prepared manifests, and records Pareto state plus outbox events in one transaction. A retry after a
 manifest failure resumes publication; a retry after a Pub/Sub failure drains the outbox without
 fetching Artificial Analysis again.
+
+A response containing duplicate model IDs is still rejected in full: it does not update
+`public/latest.json`, and no duplicate is selected for the frontend. Before failing, the production
+collector writes the complete page-by-page upstream response and the normalized model walk to the
+private diagnostics bucket. The structured `data.refresh.rejected.duplicate-models` log records
+each occurrence's page and position, the normalized fields that differ, and the private object path
+for later inspection. This capture deliberately records response data only; the API key remains a
+request header and is never included.
 
 ## Endpoint deprecation
 

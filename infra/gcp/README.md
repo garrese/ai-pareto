@@ -215,6 +215,26 @@ severity>=ERROR
 (jsonPayload.component="collector" OR jsonPayload.component="x-publisher")
 ```
 
+Rejected refreshes caused by repeated upstream model IDs have their own event:
+
+```text
+jsonPayload.event="data.refresh.rejected.duplicate-models"
+```
+
+The entry compares the normalized variants, records their source page and position, and includes
+`archive.bucket` plus `archive.diagnosticPath`. When `archive.stored` is `true`, an authenticated
+operator can download the complete rejected response for analysis:
+
+```powershell
+gcloud storage cp "gs://<archive.bucket>/<archive.diagnosticPath>" .
+```
+
+The diagnostics bucket is separate from the anonymous public-data bucket, enforces public-access
+prevention, and deletes captures after the configured retention period (30 days by default). A
+rejected capture is never referenced by `public/latest.json` or read by the frontend. If archiving
+itself fails, the collector emits `data.refresh.rejected.archive-failed` and still rejects the
+refresh.
+
 The resource picker can further narrow the view to the collector Cloud Run Job or the X publisher
 Cloud Run service, but the structured filters above work across both components.
 

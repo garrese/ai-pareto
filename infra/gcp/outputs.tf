@@ -3,6 +3,11 @@ output "public_data_bucket" {
   value       = google_storage_bucket.public_data.name
 }
 
+output "collector_diagnostics_bucket" {
+  description = "Private bucket retaining rejected collector payloads for diagnosis."
+  value       = google_storage_bucket.collector_diagnostics.name
+}
+
 output "firebase_hosting_url" {
   description = "Primary public URL for the static web application."
   value = (
