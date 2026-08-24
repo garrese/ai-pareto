@@ -218,11 +218,19 @@ reader can see one — a standing disclaimer on every other view is noise.
 Shorter labels bought coverage outright: 1280px now names **17 of 17** gold models, against 15
 before, and a 375px phone names 14 where it used to fit almost none.
 
-- **Idle, the best front on show is named** — gold normally, silver if gold is filtered out, and so
-  on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
-  the labels instead**, whatever tier they are in, so the answer to the query is the only thing
-  spelled out — but past **10 matches only the ranked ones are named**, because a broad query
-  matches most of the cloud and burying the fronts in it defeats the point.
+- **The best front on show is named** — gold normally, silver if gold is filtered out, and so on.
+  The dominated cloud is never named; there are hundreds of it. **Searching, the matches are named
+  first**, whatever tier they are in, so the answer to the query is spelled out before anything
+  else — but past **10 matches only the ranked ones are named**, because a broad query matches most
+  of the cloud and burying the fronts in it defeats the point.
+- **The names already on the plot stay on it while searching, dimmed** (2026-08-24) instead of being
+  replaced by the matches. They recede exactly as the marks and the front lines do: a match is only
+  informative against the field it sits in, and a reader who was reading the front before typing
+  should not lose it. They are served *after* every match, so the matches take the closest, cleanest
+  slots and the dimmed names fill in what is left — including nothing at all, on a plot the matches
+  have already filled, because `LABEL_LIMIT` still caps the total. A **compact plot names only the
+  matches**: there, names are off by default and are on because a bot link asked for one, so there
+  is no context to keep, and a dozen names at phone width are the chart rather than an annotation.
 - A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **off on the
   screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
   annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
@@ -237,8 +245,10 @@ before, and a 375px phone names 14 where it used to fit almost none.
 - **Everything else is priced, not forbidden**, so a crowded chart degrades instead of emptying out.
   Crossing a front line costs 10 and is the expensive one — a name laid across a frontier hides the
   one thing the chart draws, and reads as if the curve itself were annotated. A leader crossing one
-  costs 4, covering a ranked mark 3, covering the dominated cloud 1. The search stops at the first
-  zero-cost slot on the nearest ring that has one.
+  costs 4, covering a ranked mark 3, covering the dominated cloud 1. **Covering a matched mark costs
+  6**, more than any other mark, because it is the answer to the query: a name laid over the thing
+  being searched for hides exactly what the search was for. The search stops at the first zero-cost
+  slot on the nearest ring that has one.
   - The prices came from real clutter (2026-08-15): before them, five of the fifteen names on the
     default view lay across a front line. After, 1280px names 15 of 17 gold models with zero label
     overlaps, no ranked mark covered, and two crossings left in the tightest corner.
@@ -255,7 +265,9 @@ would only punish the typing. `is-searching` is set from `matches.size > 0`, not
 
 Matches recede the rest of the plot rather than erasing it: 0.12 opacity was tried and the fronts
 disappeared. The dominated cloud (0.22) and the tiers (0.38) dim by different amounts so the
-ranking still reads through the dimming.
+ranking still reads through the dimming. **Names carried over from the idle view dim to 0.45** — a
+little above the tiers, because text has far less ink than a dot to be read by and its halo fades
+with it.
 
 ## Small screens
 

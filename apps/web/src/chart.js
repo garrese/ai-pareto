@@ -37,6 +37,12 @@ const CROSS_FRONT_LEADER_COST = 4;
 const COVER_RANKED_COST = 3;
 const COVER_CLOUD_COST = 1;
 /**
+ * A matched mark is the answer to the query, so covering one costs more than
+ * covering any other datum. The names kept on a searched plot are there to be
+ * read past, never over the thing being searched for.
+ */
+const COVER_MATCH_COST = 6;
+/**
  * Placement is tried in this order, nearest ring first, so a label lands as
  * close to its mark as the crowd allows and in the tidiest direction that is
  * free. `dx`/`dy` are a unit direction; the halves of the compass come last
@@ -284,6 +290,7 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
   for (const target of targets) {
     const label = chartLabel(target.model);
     const text = el('text', { 'text-anchor': 'middle' });
+    if (target.dim) text.setAttribute('class', 'is-dimmed');
     text.textContent = label;
     group.append(text);
 
@@ -316,7 +323,9 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
         const leader = leaderFor(target, box);
         let cost = 0;
         for (const p of nearMarks) {
-          if (covers(grown, p)) cost += p.ranked ? COVER_RANKED_COST : COVER_CLOUD_COST;
+          if (!covers(grown, p)) continue;
+          if (p.match) cost += COVER_MATCH_COST;
+          else cost += p.ranked ? COVER_RANKED_COST : COVER_CLOUD_COST;
         }
         for (const line of nearLines) {
           if (segmentHitsBox(line, box)) cost += CROSS_FRONT_COST;
@@ -343,7 +352,11 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
 
     // Leaders go in front of the group so every label paints over them: the
     // halo has to cut the line where it meets the text.
-    if (best.leader) group.insertBefore(el('line', best.leader), group.firstChild);
+    if (best.leader) {
+      const leader = el('line', best.leader);
+      if (target.dim) leader.setAttribute('class', 'is-dimmed');
+      group.insertBefore(leader, group.firstChild);
+    }
   }
 
   return shortened;
@@ -583,54 +596,77 @@ export function renderChart({
     px: x.map(model[xMetric.key]),
     py: y.map(model[yMetric.key]),
     ranked: tierOf.has(model.id),
+    match: Boolean(matches && matches.has(model.id)),
   }));
 
   // Names -------------------------------------------------------------------
-  // Idle, the best front on show is named — that row of models is what the page
+  // The best front on show is named — that row of models is what the page
   // exists to point at, and the dominated cloud never gets a name because there
-  // are hundreds of it. A search takes the labels over: only what matched is
-  // named, so the answer to the query is the only thing spelled out.
+  // are hundreds of it.
+  const bestFrontTargets = () => {
+    const topTier = fronts.findIndex((front, index) => shows(index) && front.length > 0);
+    if (topTier === -1) return [];
+    const targets = positions.filter((p) => tierOf.get(p.model.id) === topTier);
+    if (targets.length === 0) return [];
+    const leftmost = Math.min(...targets.map((p) => p.px));
+    const rightmost = Math.max(...targets.map((p) => p.px));
+    // Most hemmed-in first, but the two ends of the front go before anyone.
+    // They are the answers to "what is the best there is" and "what is the
+    // least I can pay to still be on the front", and the top end sits in the
+    // corner where space runs out first — served late it went unnamed.
+    // Placement is greedy, so whoever goes first takes the closest slot, and
+    // a model with room to spare can afford to wait. Plain left-to-right
+    // order names just as many but pushes them further out: 230px of leader
+    // line against 183, worst case 66px against 41, on the default view.
+    // One past the most crowded a model could possibly be, so the ends
+    // outrank everyone without the two of them tying at Infinity.
+    const ahead = targets.length + 1;
+    const priority = new Map(
+      targets.map((p) => [
+        p.model.id,
+        p.px === leftmost || p.px === rightmost
+          ? ahead
+          : targets.filter((q) => Math.hypot(q.px - p.px, q.py - p.py) < 130).length,
+      ]),
+    );
+    targets.sort((a, b) => priority.get(b.model.id) - priority.get(a.model.id) || a.px - b.px);
+    return targets;
+  };
+
   let labelled = [];
-  if (!showLabels) {
-    labelled = [];
-  } else if (searching) {
-    labelled = positions.filter((p) => matches.has(p.model.id));
-    if (labelled.length > LABEL_RANKED_ONLY_ABOVE) {
-      labelled = labelled.filter((p) => p.ranked);
+  if (showLabels && searching) {
+    // A search takes the labels over: the matches are named wherever they sit,
+    // so the answer to the query is spelled out first.
+    let matched = positions.filter((p) => matches.has(p.model.id));
+    if (matched.length > LABEL_RANKED_ONLY_ABOVE) {
+      matched = matched.filter((p) => p.ranked);
     }
     // Better fronts are named first, so they win the space when it runs short.
-    labelled.sort(
+    matched.sort(
       (a, b) =>
         (tierOf.get(a.model.id) ?? fronts.length) - (tierOf.get(b.model.id) ?? fronts.length) ||
         a.px - b.px,
     );
-  } else {
-    const topTier = fronts.findIndex((front, index) => shows(index) && front.length > 0);
-    if (topTier !== -1) {
-      labelled = positions.filter((p) => tierOf.get(p.model.id) === topTier);
-      const leftmost = Math.min(...labelled.map((p) => p.px));
-      const rightmost = Math.max(...labelled.map((p) => p.px));
-      // Most hemmed-in first, but the two ends of the front go before anyone.
-      // They are the answers to "what is the best there is" and "what is the
-      // least I can pay to still be on the front", and the top end sits in the
-      // corner where space runs out first — served late it went unnamed.
-      // Placement is greedy, so whoever goes first takes the closest slot, and
-      // a model with room to spare can afford to wait. Plain left-to-right
-      // order names just as many but pushes them further out: 230px of leader
-      // line against 183, worst case 66px against 41, on the default view.
-      // One past the most crowded a model could possibly be, so the ends
-      // outrank everyone without the two of them tying at Infinity.
-      const ahead = labelled.length + 1;
-      const priority = new Map(
-        labelled.map((p) => [
-          p.model.id,
-          p.px === leftmost || p.px === rightmost
-            ? ahead
-            : labelled.filter((q) => Math.hypot(q.px - p.px, q.py - p.py) < 130).length,
-        ]),
-      );
-      labelled.sort((a, b) => priority.get(b.model.id) - priority.get(a.model.id) || a.px - b.px);
-    }
+    // The names already on the plot do not vanish when a query narrows it: they
+    // recede exactly as the marks and the front lines do, because a match is
+    // only informative against the field it sits in, and a reader who was
+    // reading the front before typing should not lose it. They are served after
+    // every match, so the matches take the closest, cleanest slots and the
+    // dimmed names fill in what is left — including nothing at all, on a plot
+    // the matches have already filled.
+    //
+    // A compact plot keeps naming only the matches. There, names are off by
+    // default and are on because a bot link asked for one, so there is no
+    // context to preserve — and a dozen names at phone width are the chart
+    // rather than an annotation of it.
+    const context = compact
+      ? []
+      : bestFrontTargets()
+          .filter((p) => !matches.has(p.model.id))
+          .map((p) => ({ ...p, dim: true }));
+    labelled = [...matched, ...context];
+  } else if (showLabels) {
+    labelled = bestFrontTargets();
   }
   const shortened = drawLabels({
     svg,
