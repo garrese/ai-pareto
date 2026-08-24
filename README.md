@@ -1,58 +1,84 @@
-# AI Pareto
+<p align="center">
+  <img src="doc/img/AVATAR-radar-blue-2.png" alt="AI Pareto Radar logo — a radar sweep over gold, silver and bronze Pareto fronts" width="150" />
+</p>
 
-**Explore the trade-offs between the world's leading AI models.**
+<h1 align="center">AI Pareto</h1>
 
-[**Open the live app**](https://ai-pareto.web.app) · [Architecture](doc/architecture.md) · [Changelog](CHANGELOG.md) · [Local development](doc/local-development.md)
+<p align="center">
+  <strong>Explore the trade-offs between the world's leading AI models — and get pinged when the frontier moves.</strong>
+</p>
 
-AI Pareto is an end-to-end, production-minded learning project that turns the [Artificial Analysis](https://artificialanalysis.ai) model dataset into an interactive Pareto frontier explorer. It answers a practical question: *which models are genuinely hard to beat when intelligence, cost, speed, and latency pull in different directions?*
+<p align="center">
+  <a href="https://ai-pareto.web.app"><strong>Open the live app</strong></a>
+  ·
+  <a href="https://x.com/AIParetoRadar"><strong>Follow @AIParetoRadar on X</strong></a>
+  ·
+  <a href="doc/architecture.md">Architecture</a>
+  ·
+  <a href="CHANGELOG.md">Changelog</a>
+  ·
+  <a href="doc/local-development.md">Local development</a>
+</p>
 
-Rather than presenting a single, misleading "best model" ranking, the app lets people explore the trade-offs and see the models that are non-dominated for the metrics that matter to them.
+---
 
-> The site is live and updated from a scheduled production collector every four hours. The X notification service is implemented and tested, and is ready to deploy once its production credentials are configured.
+There is no single "best" AI model — only trade-offs. A model that tops the intelligence charts can cost fifty times more per task than one a few points behind it. AI Pareto turns the [Artificial Analysis](https://artificialanalysis.ai) dataset into the picture that makes those trade-offs visible: the **Pareto frontier** — the set of models nothing else beats on both of the metrics you care about.
 
-## What users can do
+The project is two products running on one production pipeline:
 
-- Compare any two of intelligence, price per million tokens, cost per benchmark task, generation speed, and time to first token.
-- See the first three Pareto fronts as gold, silver, and bronze tiers, with the thirty models closest to joining a front kept behind them as context.
-- Search and highlight models or creators without making the frontier disappear; anything matched is drawn even when it falls outside that context set.
-- Select the exact visible model set directly or by creator — each picker has its own search and synchronized checks — and recompute the frontier for that set, or hide visual tiers while preserving their original meaning.
-- Switch to an accessible table view containing the same ranked model data as the chart.
-- Open a shared `?highlight=` link directly on the model mentioned in a notification.
+- **The web app** — an interactive Pareto frontier explorer, live at [ai-pareto.web.app](https://ai-pareto.web.app) and refreshed every four hours.
+- **AI Pareto Radar** — an X bot watching the same frontier, posting whenever a model joins it or climbs it: [@AIParetoRadar](https://x.com/AIParetoRadar).
 
-The interface is responsive by design: filters collapse first on small screens so the chart and table keep the available space, and chart labels are placed greedily to stay within the plot without overlapping one another.
+## The web app
 
-## The product, at a glance
+[![The AI Pareto chart: cost per task versus intelligence, with the gold, silver and bronze fronts drawn and the filter rail above](doc/img/chart-pc-with-filters.png)](https://ai-pareto.web.app)
 
-```mermaid
-flowchart LR
-    visitor["Model evaluator"] --> site["AI Pareto\ninteractive web app"]
-    site --> compare["Compare two metrics"]
-    site --> discover["Explore Pareto tiers"]
-    site --> filter["Search, filter & highlight"]
-    site --> table["Inspect an accessible table"]
+Pick any two of **intelligence, price per million tokens, cost per benchmark task, generation speed, and time to first token**, and the chart draws the first three Pareto fronts as gold, silver, and bronze tiers — with the thirty models closest to joining a front kept behind them as context, so the frontier is read against the field it beats.
 
-    compare --> decision["Make a better model choice"]
-    discover --> decision
-    filter --> decision
-    table --> decision
-```
+Around that core:
 
-### Pareto tiers, not a winner-takes-all score
+- **Search and highlight** models or creators without making the frontier disappear — everything else dims, matches are named first.
+- **Filter at the right layer**: model and creator pickers recompute the frontier for the exact set you select; tier and front-line toggles only change what is drawn, preserving what the medals mean.
+- **Zoom into the crowded corners** — pinch on touch, Ctrl/⌘ + wheel on desktop. The zoom is a view, never a filter: fronts, legend, and table ignore it.
+- **Readable labels, by design**: names use collision-aware placement that never covers a frontier, and model variants collapse to letters — `Claude Opus 5 (a)` is the ablest of its family — so a phone can name the whole gold front.
+- **An accessible table view** carries the same ranked data as the chart, for readers and screen readers alike.
+- **Deep links**: every bot post lands on `?highlight=<model>`, opening the chart with that model already highlighted.
 
-A model is on the first frontier when no other measured model is better on both selected axes. Remove that frontier and the next best set becomes the second frontier; repeat once more for bronze. This makes trade-offs visible instead of hiding them behind arbitrary metric weights.
+The layout is phone-first where it counts: filters fold away so the plot gets the pixels, the chart/table switch stays one tap away, and small screens open on the gold front alone with its models named.
+
+## The Radar bot
+
+While the app answers "which model should I pick today?", the bot answers "did the answer just change?". After every data refresh it compares the new cost-per-task × intelligence frontier against the last one and posts each **arrival** (a model joining a front) and **promotion** (a model moving up to a better one).
+
+<table>
+  <tr>
+    <td width="50%"><img src="doc/img/radar-profile.png" alt="The AI Pareto Radar profile on X, with the radar avatar and the live chart as its banner" /></td>
+    <td width="50%"><img src="doc/img/radar-3-posts.png" alt="Three bot posts announcing models joining the first, second and third Pareto frontiers, each with its metrics and a highlight link" /></td>
+  </tr>
+</table>
+
+The posting rules were tuned against real frontier movements, not hypothetical ones:
+
+- **Only arrivals and promotions.** One arrival can cascade into many demotions; announcing each would retell the same news five times. Demotions and exits stay silent.
+- **One post per movement**, with the medal, the model's metrics, and its nearest frontier neighbour — and a link that opens the chart with the model highlighted.
+- **Duplicate-safe by construction.** Cloud delivery is at-least-once, so the bot is built to make retries harmless rather than pretending they will not happen (details below).
+
+## Pareto tiers, not a winner-takes-all score
+
+A model is on the first frontier when no other measured model beats it on both selected axes. Remove that frontier and the next best set becomes the second; repeat once more for bronze. Front rank is invariant to units and to the log/linear toggle — unlike any weighted score or efficiency ratio, both of which were considered and rejected.
 
 For affordability, the project deliberately exposes two different measures:
 
 | Metric | Meaning | Why it matters |
 | --- | --- | --- |
-| Price per 1M tokens | 3:1 blended input/output token rate | Useful for comparing model API rates; broader data coverage. |
-| Cost per task | Actual spend for an Artificial Analysis Intelligence Index task | Captures output length as well as token rate; more honest for task-level cost. |
+| Price per 1M tokens | 3:1 blended input/output token rate | A **rate** — useful for comparing API prices; broader data coverage. |
+| Cost per task | Actual spend per Artificial Analysis Intelligence Index task | A **bill** — it prices verbosity too, so a chatty reasoning model can be cheap per token and expensive per task. |
 
 Missing values are excluded from the relevant axis. In particular, an upstream price of `$0` for an open-weight model without a hosted priced endpoint is treated as missing, so it cannot incorrectly dominate every cost comparison.
 
 ## Architecture
 
-The production design separates public reads, scheduled ingestion, state, and external side effects. Static content does the everyday work; compute runs only when a refresh or an event needs it.
+The production design separates public reads, scheduled ingestion, state, and external side effects. Static content does the everyday work; compute runs only when a refresh or an event needs it, and every workload scales to zero between runs.
 
 ```mermaid
 flowchart LR
@@ -65,7 +91,7 @@ flowchart LR
     hosting["Firebase Hosting\nstatic web app"] --> browser["Browser"]
     browser --> snapshots
 
-    pubsub --> publisher["Cloud Run service\nX publisher — ready to deploy"]
+    pubsub --> publisher["Cloud Run service\nX publisher"]
     publisher --> firestore
     publisher --> xapi["X API"]
     pubsub --> dlq["Dead-letter topic"]
@@ -132,17 +158,6 @@ Cloud delivery is intentionally treated as at-least-once. A transactional outbox
 | Infrastructure | Terraform, Cloud Build, Artifact Registry | Reproducible cloud resources and digest-pinned container deployments. |
 | Notifications | X API with OAuth 1.0a User Context | A private Pub/Sub push consumer renders and publishes changes to the monitored frontier. |
 | Testing | Node.js built-in test runner | Dependency-light unit and contract coverage across all three applications. |
-
-## Engineering decisions worth exploring
-
-| Decision | Reasoning |
-| --- | --- |
-| Keep credentials off the client | The upstream API key exists only in the local server or Secret Manager; the browser receives normalized public data, never a token. |
-| Cache and batch upstream reads | The source endpoint is paginated and quota-limited. A refresh fetches each page once, caches locally during development, and refreshes in production every four hours. |
-| Publish immutable snapshots | Static browsers never read partly written data. A small manifest points to a complete versioned snapshot. |
-| Separate collection from notification | A problem delivering a social post cannot trigger extra upstream calls or prevent new data from being published. |
-| Model delivery failures explicitly | Pub/Sub may retry. Deterministic event IDs, an outbox, Firestore transactions, and an eventual-consistency-aware reconciliation flow make those retries safe to handle. |
-| Preserve meaning in the visual design | Medal colours have textual and table equivalents, labels use collision-aware placement, and filters distinguish between recomputing data and only changing what is drawn. |
 
 ## Repository guide
 
