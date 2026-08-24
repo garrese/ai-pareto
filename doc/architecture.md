@@ -36,6 +36,7 @@ flowchart LR
     scheduler["Cloud Scheduler"] --> collector["Collector<br/>Cloud Run Job"]
     collector --> upstream["Artificial Analysis API"]
     collector --> storage["Cloud Storage<br/>public immutable snapshots"]
+    collector --> diagnostics["Cloud Storage<br/>private rejected payloads"]
     collector --> state["Firestore<br/>private state"]
     collector --> topic["Pub/Sub topic<br/>pareto-change-events"]
 
@@ -80,6 +81,12 @@ One execution:
 9. Publishes pending outbox events to Pub/Sub and marks them as enqueued.
 10. Records the completed refresh and the last observed upstream rate-limit snapshot.
 
+Duplicate model IDs stop this sequence before snapshot construction. The collector archives the
+complete successful upstream page envelopes and normalized walk in private diagnostic storage,
+logs the duplicate positions and field differences, and fails the execution. The existing public
+manifest remains unchanged, so rejected input cannot reach the browser while an operator retains
+the evidence needed to decide a later resolution policy.
+
 The Cloud Run container uses Application Default Credentials from its dedicated service account.
 Firestore and Pub/Sub use their official Node.js clients. Cloud Storage uses its JSON API with the
 official Google authentication client, create-only generation preconditions for immutable objects,
@@ -93,6 +100,10 @@ accepted by Pub/Sub, notification delivery is a separate responsibility.
 Cloud Storage replaces the production use of the local `.cache` directory. Only generated public
 data is readable anonymously. Credentials, notification state, raw error bodies, and operational
 metadata remain private.
+
+Rejected duplicate-ID walks use a separate private bucket with public-access prevention and a
+30-day default lifecycle. They are addressed by the object path written to the structured rejection
+log and are never referenced from the public object layout.
 
 The proposed object layout is:
 

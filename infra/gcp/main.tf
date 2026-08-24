@@ -3,6 +3,10 @@ locals {
     var.public_data_bucket_name,
     "${var.project_id}-public-data",
   )
+  collector_diagnostics_bucket_name = coalesce(
+    var.collector_diagnostics_bucket_name,
+    "${var.project_id}-collector-diagnostics",
+  )
   firebase_site_id = coalesce(var.firebase_site_id, var.project_id)
   deploy_collector = var.collector_image != null
   deploy_publisher = var.publisher_image != null && var.x_user_id != null

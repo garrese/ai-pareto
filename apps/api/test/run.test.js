@@ -270,6 +270,88 @@ test('a refresh logs real data changes, every changed front, and the publication
   );
 });
 
+test('a duplicate-bearing refresh is archived and logged without publishing it', async () => {
+  const calls = [];
+  const logs = [];
+  let archived;
+  const repeated = { id: 'model-a', intelligence: 10, price: 1 };
+
+  await assert.rejects(
+    () =>
+      runCollector({
+        executionId: 'execution-duplicate',
+        taskAttempt: 2,
+        leaseSeconds: 900,
+        source: {
+          async fetchModels(options) {
+            assert.equal(options.captureSourcePages, true);
+            return {
+              models: [repeated, { ...repeated, intelligence: 11 }],
+              modelOrigins: [
+                { page: 1, pageIndex: 199 },
+                { page: 2, pageIndex: 0 },
+              ],
+              sourcePages: [
+                { page: 1, payload: { data: [{ id: 'model-a', raw: 'first' }] } },
+                { page: 2, payload: { data: [{ id: 'model-a', raw: 'second' }] } },
+              ],
+              fetchedAt: '2026-08-24T12:17:00.000Z',
+              pages: 2,
+              rateLimit: { limit: 100, remaining: 98 },
+            };
+          },
+        },
+        storage: {
+          async putImmutable() {
+            calls.push('public-immutable');
+          },
+          async putManifest() {
+            calls.push('public-manifest');
+          },
+        },
+        diagnosticStore: {
+          bucketName: 'private-diagnostics',
+          async putDiagnostic(path, body) {
+            calls.push('diagnostic');
+            archived = { path, body };
+          },
+        },
+        state: {
+          async claimExecution() {
+            return { action: 'fetch' };
+          },
+          async prepareSnapshot() {
+            calls.push('prepare');
+          },
+        },
+        eventBus: { async publish() { calls.push('publish'); } },
+        now: () => new Date('2026-08-24T12:17:01.000Z'),
+        log(severity, message, fields) {
+          logs.push({ severity, message, ...fields });
+        },
+      }),
+    /Duplicate model ID: model-a/,
+  );
+
+  assert.deepEqual(calls, ['diagnostic']);
+  assert.match(
+    archived.path,
+    /^rejected-refreshes\/2026-08-24\/execution-duplicate\/attempt-2-/,
+  );
+  assert.equal(archived.body.reason, 'duplicate-model-ids');
+  assert.equal(archived.body.normalizedModels.length, 2);
+  assert.equal(archived.body.sourcePages.length, 2);
+  assert.equal(archived.body.duplicates[0].differingFields.intelligence[0], 10);
+  assert.equal(archived.body.duplicates[0].differingFields.intelligence[1], 11);
+
+  const rejected = logs.find(({ event }) => event === 'data.refresh.rejected.duplicate-models');
+  assert.equal(rejected.severity, 'ERROR');
+  assert.equal(rejected.archive.stored, true);
+  assert.equal(rejected.archive.bucket, 'private-diagnostics');
+  assert.equal(rejected.duplicates[0].occurrences[0].page, 1);
+  assert.equal(rejected.duplicates[0].occurrences[1].page, 2);
+});
+
 test('a refresh that would run out of quota mid-walk is deferred, not attempted', async () => {
   const calls = [];
   const state = {

@@ -26,6 +26,7 @@ export function loadCloudCollectorConfig(environment = process.env) {
   return {
     projectId,
     bucketName: required(environment, 'PUBLIC_DATA_BUCKET'),
+    diagnosticsBucketName: required(environment, 'COLLECTOR_DIAGNOSTICS_BUCKET'),
     topicName: environment.PARETO_TOPIC?.trim() || 'pareto-change-events',
     executionId: environment.CLOUD_RUN_EXECUTION?.trim() || `local-${randomUUID()}`,
     taskAttempt: Number(environment.CLOUD_RUN_TASK_ATTEMPT ?? 0),

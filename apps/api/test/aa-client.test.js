@@ -67,6 +67,32 @@ test('fetchModels walks every page once and normalizes the result', async () => 
   });
 });
 
+test('a diagnostic walk retains raw page envelopes and normalized model origins on request', async () => {
+  const fetchImpl = async (url) => {
+    const page = Number(url.searchParams.get('page'));
+    return Response.json({
+      tier: 'free',
+      data: [rawModel('repeated-model')],
+      pagination: { has_more: page === 1 },
+    });
+  };
+
+  await withClient(fetchImpl, async (client) => {
+    const ordinary = await client.fetchModels();
+    assert.equal('sourcePages' in ordinary, false);
+    assert.equal('modelOrigins' in ordinary, false);
+
+    const diagnostic = await client.fetchModels({ captureSourcePages: true });
+    assert.deepEqual(diagnostic.modelOrigins, [
+      { page: 1, pageIndex: 0 },
+      { page: 2, pageIndex: 0 },
+    ]);
+    assert.equal(diagnostic.sourcePages.length, 2);
+    assert.equal(diagnostic.sourcePages[0].payload.tier, 'free');
+    assert.equal(diagnostic.sourcePages[1].payload.data[0].id, 'repeated-model');
+  });
+});
+
 test('missing rate-limit headers use the configured fallback without inventing values', async () => {
   await withClient(
     async () => Response.json({ data: [], pagination: { has_more: false } }),

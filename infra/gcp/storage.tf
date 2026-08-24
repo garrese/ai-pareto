@@ -40,3 +40,32 @@ resource "google_storage_bucket_iam_member" "public_reader" {
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
+
+resource "google_storage_bucket" "collector_diagnostics" {
+  project                     = var.project_id
+  name                        = local.collector_diagnostics_bucket_name
+  location                    = var.region
+  storage_class               = "STANDARD"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  soft_delete_policy {
+    retention_duration_seconds = 0
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = var.collector_diagnostics_retention_days
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.required]
+}

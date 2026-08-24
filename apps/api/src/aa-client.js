@@ -138,8 +138,10 @@ export class ArtificialAnalysisClient {
    * Walks every page of the model list. Each page is one request against the
    * daily quota, so the result is cached aggressively upstream of this call.
    */
-  async fetchModels() {
+  async fetchModels({ captureSourcePages = false } = {}) {
     const models = [];
+    const modelOrigins = [];
+    const sourcePages = [];
     let rateLimit = null;
     let requestCount = 0;
     let page = 1;
@@ -163,7 +165,17 @@ export class ArtificialAnalysisClient {
         throw new Error('Unexpected API response: `data` is not an array');
       }
 
-      models.push(...payload.data.map(normalizeModel));
+      const normalized = payload.data.map(normalizeModel);
+      models.push(...normalized);
+      if (captureSourcePages) {
+        modelOrigins.push(
+          ...normalized.map((_, pageIndex) => ({
+            page,
+            pageIndex,
+          })),
+        );
+        sourcePages.push({ page, payload });
+      }
       rateLimit = readRateLimit(res.headers, this.dailyLimit);
 
       if (!payload.pagination?.has_more) break;
@@ -181,6 +193,7 @@ export class ArtificialAnalysisClient {
       models,
       pages: requestCount,
       rateLimit,
+      ...(captureSourcePages ? { modelOrigins, sourcePages } : {}),
     };
   }
 

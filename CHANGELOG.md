@@ -7,6 +7,10 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Preserved duplicate-ID refresh failures for diagnosis without weakening publication safety. The
+  collector now logs the repeated variants, source pages and differing fields, archives the full
+  rejected upstream walk in a private 30-day bucket, and still leaves the public manifest untouched
+  until a duplicate-resolution policy is agreed from real evidence.
 - Let the chart's names spend the room a zoom buys. Unzoomed nothing changes: only the best front
   wearing its line is named. Zoomed, every front on show is named, best first, and once the window
   is sparse enough that everything visible fits under the label cap, the dominated cloud is named

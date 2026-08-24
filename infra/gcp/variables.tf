@@ -48,6 +48,24 @@ variable "snapshot_retention_days" {
   }
 }
 
+variable "collector_diagnostics_bucket_name" {
+  description = "Globally unique private bucket for rejected collector payloads; null derives it from the project ID."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "collector_diagnostics_retention_days" {
+  description = "Age after which rejected collector payloads are deleted."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.collector_diagnostics_retention_days >= 7
+    error_message = "collector_diagnostics_retention_days must be at least 7."
+  }
+}
+
 variable "collector_image" {
   description = "Collector image by immutable digest; null creates only bootstrap infrastructure."
   type        = string

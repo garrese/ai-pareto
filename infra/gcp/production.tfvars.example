@@ -7,6 +7,11 @@ firestore_location = "europe-west1"
 public_data_bucket_name = null
 firebase_site_id        = "ai-pareto"
 
+# Rejected upstream payloads are kept privately for diagnosis and deleted
+# automatically after this many days.
+collector_diagnostics_bucket_name    = null
+collector_diagnostics_retention_days = 30
+
 # Set this locally to enable a billing-account budget. It is not a secret.
 billing_account_id   = null
 monthly_budget_units = 10
