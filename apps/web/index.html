@@ -19,14 +19,16 @@
         <!-- High in the page on purpose: the bot and the source are the two places
              a reader goes next, and at footnote size nobody ever saw them. -->
         <p class="header-links">
-          <a class="header-link" href="https://x.com/AIParetoRadar" rel="noreferrer noopener"
-            >Follow @AIParetoRadar on X</a
-          >
-          <a class="header-link" href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener"
+          <!-- Bot link and its note are one block: side by side they read as three
+               unrelated items and the note looked like it explained GitHub. -->
+          <span class="header-bot">
+            <a class="header-link" href="https://x.com/AIParetoRadar" rel="noreferrer noopener"
+              >Follow @AIParetoRadar on X</a
+            >
+            <span class="header-links-note">Posts every time a model enters a Pareto front.</span>
+          </span>
+          <a class="header-source" href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener"
             >Source on GitHub</a
-          >
-          <span class="header-links-note"
-            >Get an alert the moment a new model breaks the frontier.</span
           >
         </p>
       </header>

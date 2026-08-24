@@ -7,6 +7,11 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Separated the bot from the source link in the header. The X link and the line explaining what the
+  bot posts now stack as one block, so the note can no longer read as a caption for GitHub, which
+  drops to a plain secondary link. The note also survives on a phone, where it used to be hidden:
+  stacked it costs one row and it is what tells a first-time reader what @AIParetoRadar is.
+
 - Kept the model names already on the plot while a search runs. They now dim along with the marks
   and the front lines they annotate instead of disappearing, so a highlighted model is read against
   the named front it sits in. Matches are still named first and take the cleanest slots, a name may
