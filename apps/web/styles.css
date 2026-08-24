@@ -643,6 +643,15 @@ body {
   stroke-linecap: round;
 }
 
+/* Names that were already on the plot when the search started stay on it and
+   recede, like the marks and the front lines they annotate: the match reads
+   against a labelled field instead of an empty one. Kept a little above the
+   tiers' 0.38 because text has far less ink than a dot to be read by, and its
+   halo fades with it. */
+.mark-label .is-dimmed {
+  opacity: 0.45;
+}
+
 .hover-ring {
   fill: none;
   stroke: var(--text-primary);
