@@ -339,13 +339,20 @@ only what is drawn, because recomputing would promote silver into gold's place t
 hidden.
 
 The **front-lines picker** (2026-08-24) is deliberately weaker than all of those: unchecking a row
-stops that front's line being drawn and touches nothing else — the models stay plotted. A line
-whose tier is hidden is not drawn either, because a line over missing marks points at nothing. The
-tier and line pickers look identical and do different things, so the distinction is carried
-structurally: the controls row groups "Axes", "Filter models" (tiers, creators, models) and
-"Overlays" (front lines, names) under labelled headings, and each picker ends in a one-line
-`picker-hint` saying which of the two things it does. Keep new controls inside the group whose
-promise they match.
+demotes that front to context — no line, and its marks take the dominated cloud's grey (asked for
+after medal-coloured marks with no front to explain them read as a bug) — but the models never
+leave the plot; removing models is the tier picker's job. The demotion is presentation-deep:
+`ranked` in `chart.js` follows it, so labels price a demoted mark as cloud and broad searches do
+not single it out, and the legend swatch turns grey so the legend keeps decoding what is actually
+drawn. A hidden tier has no line either, because a line over missing marks points at nothing.
+
+The tier and line pickers look identical and do different things, so the distinction is carried
+structurally: the filter panel is a labelled rail of single-line rows — "Axes", "Filter models"
+(tiers, creators, models), "Overlays" (front lines, names), "Highlight" (search, utility buttons) —
+with control labels beside their widgets, one tier of text per row; the first pass stacked group
+captions over a second deck of labels and read as clutter (relaid 2026-08-24). Each picker still
+ends in a one-line `picker-hint` saying which of the two things it does. Keep new controls inside
+the row whose promise they match.
 
 The creator and model pickers **each carry their own search box** (2026-08-15): 58 creators and 608
 models are more than anyone scrolls. Rows are built once and hidden as you type — rebuilding 608
