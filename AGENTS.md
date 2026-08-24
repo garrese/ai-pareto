@@ -271,6 +271,13 @@ What "finished and verified" means in practice:
   output, exercised the changed path) — not just "the code looks right".
 - It is not mid-edit, half-applied, or blocked on an open question back to the user.
 
+**No round ends without commit, merge and push.** A round is one finished evolution — the piece of
+work the user just asked for. Closing it means, in this order and without asking: commit the change
+on its work branch, merge that branch into `develop`, and push `develop` to `origin`. Do not report
+a round as done, and do not pick up the next one, while any of the three is still pending. If
+something genuinely blocks the sequence — a merge conflict, a failing check, an open question — say
+so explicitly instead of leaving the work uncommitted and silent.
+
 Guidelines that still apply:
 
 - **Use the branch hierarchy for every change:**
