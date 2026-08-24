@@ -112,34 +112,35 @@ body {
   font-size: 0.92rem;
 }
 
-/* The bot pill and its caption stack so the caption can only ever be read as
-   belonging to the bot. */
+/* The bot and its caption share one line, and the wrapper is what keeps them
+   together: loose in the column, the caption sat next to the source link and
+   read as if it explained GitHub. It wraps rather than overflowing, since the
+   two together are wider than a narrow column. */
 .header-bot {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
 }
 
+/* A link, drawn as one. It carries the weight and the only primary-text colour
+   up here, which is what marks it as the call to action — a pill made it look
+   like a button that would do something on the page rather than leave it. */
 .header-link {
-  padding: 5px 12px;
   color: var(--text-primary);
-  text-decoration: none;
   font-weight: 600;
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .header-link:hover {
-  border-color: var(--baseline);
+  text-decoration-thickness: 2px;
 }
 
 .header-links-note {
   color: var(--text-secondary);
 }
 
-/* Plain link, not a pill: the bot is the one call to action up here. */
 .header-source {
   color: var(--text-secondary);
   text-decoration: underline;
@@ -851,8 +852,8 @@ body {
     margin-top: 6px;
   }
 
-  /* The links keep their weight and their explanatory line: stacked, the line
-     costs one row and is what tells a first-time reader what the bot is. */
+  /* The links keep their weight and their explanatory line: it is what tells a
+     first-time reader what the bot is, and it wraps to its own row here. */
   .header-links {
     gap: 8px;
     margin-top: 10px;
