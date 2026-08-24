@@ -185,6 +185,24 @@ export class ArtificialAnalysisClient {
   }
 
   /**
+   * Reads the cache and never calls upstream, whatever its age. This is what
+   * the local server serves: the free tier is 100 requests per 24h window and
+   * an expiring TTL would spend four of them on whoever happened to open the
+   * page first. Ageing past the TTL is reported, not acted on — refreshing is
+   * the user's decision, through `POST /api/refresh`.
+   */
+  async getCachedModels() {
+    const cached = await this.#readJson(this.modelsFile);
+    if (!cached) {
+      throw new Error('No cached model data yet. Refresh once to fetch it from upstream.');
+    }
+
+    const fetchedAt = Date.parse(cached.fetchedAt);
+    const stale = !Number.isFinite(fetchedAt) || Date.now() - fetchedAt >= this.cacheTtlMs;
+    return { ...cached, cache: stale ? 'stale' : 'hit', stale };
+  }
+
+  /**
    * Returns the model list, refreshing only when the on-disk cache has expired.
    * The cache lives in `.cache/models.json`, so it survives a server restart.
    * A failed refresh falls back to the stale copy rather than losing the data.

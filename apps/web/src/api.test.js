@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fetchModels, fetchUsage, resolveDataSource } from './api.js';
+import {
+  fetchModels,
+  fetchUsage,
+  manualRefreshAvailable,
+  requestRefresh,
+  resolveDataSource,
+} from './api.js';
 
 const snapshotId = 'snapshot-0123456789abcdef01234567';
 const manifest = {
@@ -153,4 +159,47 @@ test('the hosted snapshot mode does not expose private upstream quota data', asy
   globalThis.location = location();
   globalThis.ARTIFICIAL_ANALYZER_CONFIG = { dataRoot: 'https://storage.example/bucket' };
   await assert.rejects(fetchUsage(), /private operational data/);
+});
+
+test('manual refresh is offered only on the page the local server itself serves', (t) => {
+  const previousLocation = globalThis.location;
+  const previousConfig = globalThis.ARTIFICIAL_ANALYZER_CONFIG;
+  t.after(() => {
+    globalThis.location = previousLocation;
+    globalThis.ARTIFICIAL_ANALYZER_CONFIG = previousConfig;
+  });
+  globalThis.ARTIFICIAL_ANALYZER_CONFIG = {};
+
+  globalThis.location = location({ protocol: 'http:', hostname: 'localhost' });
+  assert.equal(manualRefreshAvailable(), true);
+
+  // Opened straight off disk: cross-origin to the server, which refuses it.
+  globalThis.location = location({ protocol: 'file:', hostname: '' });
+  assert.equal(manualRefreshAvailable(), false);
+
+  // Pointed at a server elsewhere, same reason.
+  globalThis.location = location({
+    protocol: 'http:',
+    hostname: 'localhost',
+    search: '?api=http://localhost:8787/',
+  });
+  assert.equal(manualRefreshAvailable(), false);
+});
+
+test('the hosted snapshot build cannot spend upstream quota', async (t) => {
+  const previousLocation = globalThis.location;
+  const previousConfig = globalThis.ARTIFICIAL_ANALYZER_CONFIG;
+  const previousFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.location = previousLocation;
+    globalThis.ARTIFICIAL_ANALYZER_CONFIG = previousConfig;
+    globalThis.fetch = previousFetch;
+  });
+
+  globalThis.location = location();
+  globalThis.ARTIFICIAL_ANALYZER_CONFIG = { dataRoot: 'https://storage.example/bucket' };
+  globalThis.fetch = async () => assert.fail('no request should leave the hosted page');
+
+  assert.equal(manualRefreshAvailable(), false);
+  await assert.rejects(requestRefresh('token'), /only available on the local development server/);
 });

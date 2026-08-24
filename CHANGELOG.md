@@ -10,6 +10,17 @@ because the evolution they integrate appears once under its work commit.
 - Rewrote the page header: the title is now "The AI Pareto Frontier", the subtitle says what the
   site is for in one line instead of explaining the plotting rules, and the X bot is presented as a
   call to action rather than a footnote.
+- Stopped the local server from ever fetching upstream on its own. It serves the cache whatever its
+  age, so opening the page costs nothing; `cache.ttl.minutes` now only decides when data is labelled
+  stale. The cloud collector already spends 24 of the 100 daily requests and the two share one key,
+  so an expiring TTL was spending four more on whoever opened the page first.
+- Added a "Refresh data" button as the only way to spend quota from the page, off in the hosted
+  build. The route behind it is gated rather than just hidden: disabled unless
+  `refresh.manual.enabled=true`, loopback only, POST only, same-origin only, and it needs a per-run
+  token that is printed to the server console and never served over HTTP, so reading the page or
+  poking the DOM does not grant it. Concurrent clicks collapse into one upstream walk.
+- Fixed the page claiming a successful refresh when the upstream call had failed and the server had
+  fallen back to cached data.
 
 ## 2026-08-15
 

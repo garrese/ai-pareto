@@ -148,10 +148,22 @@
           <span>Relevant model names</span>
         </label>
 
+        <!-- Both are local-development controls and are hidden on the hosted
+             build, which reads a published snapshot and has no upstream. -->
         <div class="control control-actions">
+          <button type="button" id="refresh">Refresh data</button>
           <button type="button" id="usage">API quota</button>
         </div>
       </div>
+
+      <!-- The token is never served to the page: it is printed in the server
+           console and pasted here, so reading the markup buys nothing. -->
+      <form class="token-form" id="token-form" hidden>
+        <label for="refresh-token">Refresh token from the server console</label>
+        <input type="text" id="refresh-token" autocomplete="off" spellcheck="false" />
+        <button type="submit">Refresh</button>
+        <button type="button" id="token-cancel">Cancel</button>
+      </form>
 
       <p class="quota" id="quota" role="status" hidden></p>
 

@@ -49,6 +49,15 @@ make a static-only build possible again.
 - **Paginated**, 200 per page — 608 models is 4 requests. Free tier is 100 requests per 24h fixed
   window, so responses are cached to `apps/api/.cache/models.json`. Never add a code path that
   refetches per render.
+- **The local server never fetches by itself** (2026-08-24). `GET /api/models` reads the cache
+  whatever its age; an expired `cache.ttl.minutes` only labels the data `stale`. The single route
+  that spends quota is `POST /api/refresh`, and it is deliberately hard to reach: off unless
+  `refresh.manual.enabled=true`, loopback only, POST only, `Sec-Fetch-Site: same-origin` only, and
+  it needs a per-run token that is printed to the server console and **never served over HTTP**.
+  That last part is the point — hiding a button in the page would not stop anyone who opens the
+  developer tools. Do not add a query parameter, a GET route, or a page-readable token that would
+  give the capability back, and do not make the page refresh on load, on a timer, or on a filter
+  change. The cloud collector already spends 24 of the 100 daily requests, and the two share a key.
 - This endpoint **does** return `X-RateLimit-Limit/Remaining/Reset`. `/api/usage` serves the last
   snapshot from `.cache/usage.json` rather than spending a request to ask.
 - Docs: <https://artificialanalysis.ai/data-api/docs>
