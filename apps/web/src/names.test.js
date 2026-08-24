@@ -119,6 +119,20 @@ test('isShortened reports only the models whose label hides something', () => {
   assert.equal(chartLabel(lettered), 'GLM-4.5V (b)');
 });
 
+test('the bare letter is kept alongside the label the table cannot fit', () => {
+  const [lone, low, high] = withShortNames([
+    model('lone', 'MiniMax M3 (Reasoning)', 44),
+    model('low', 'Claude Opus 5 (Adaptive Reasoning, Low Effort)', 52.5),
+    model('high', 'Claude Opus 5 (Adaptive Reasoning, High Effort)', 61.5),
+  ]);
+  // Alone in its family there is no letter to decode: the plot writes the whole
+  // family name, so the column has nothing to point at.
+  assert.equal(lone.shortLetter, null);
+  assert.equal(low.shortLetter, 'a');
+  assert.equal(high.shortLetter, 'b');
+  assert.equal(high.shortName, `Claude Opus 5 (${high.shortLetter})`);
+});
+
 test('chartLabel falls back to the real name when nothing was computed', () => {
   assert.equal(chartLabel({ name: 'Undecorated' }), 'Undecorated');
 });

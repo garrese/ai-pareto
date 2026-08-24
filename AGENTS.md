@@ -240,6 +240,17 @@ unmeasured models taking the last letters rather than the first. `name` itself i
 the card, the table and the pickers all keep showing the real thing, and the search box matches
 both, because a reader types back what the plot spelled out.
 
+**The shorthand rides alongside the real name** (2026-08-24) everywhere the reader might arrive
+from the plot holding a letter. The model picker prints the chart label under the name — beside the
+creator, `Anthropic · Claude Opus 5 (b)` — and matches it in its own filter box, so `opus 5 (b)`
+finds the one model it names. The table carries only the **bare letter, in a mini-column of its own
+right of the name**, `(e)`, with the whole chart label on the cell's `title`: a name column wide
+enough for both would be wider than the names, and `width: 1%` makes the column give back every
+pixel it does not need. `withShortNames` therefore returns `shortLetter` next to `shortName`, rather
+than leaving the places that only have room for the letter to parse it back out of the label. Both
+are dropped where the label says nothing the name does not — a picker note or a mini-column that
+repeats the line beside it is noise, not redundancy.
+
 Letters rather than salvaged words was decided with the user on 2026-08-24, after both were
 measured. Families mix short suffixes with long ones — `GPT-5.6 Terra` has `(low)` next to
 `(Non-reasoning)` — so keeping the short ones would make the shorthand mean two different things
@@ -326,9 +337,13 @@ else gives them up.
   whenever it is on an axis, because a card that omitted the coordinate under the pointer would be
   answering a question nobody asked. The card is also the only place the untruncated name exists, so
   it is width-capped and wraps.
-- **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
-  Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
-  title, because a spelled-out heading widens a column past anything its values ever hold.
+- **Table column order is deliberate**: tier, model, `Var`, intelligence, cost/task first, creator
+  last. Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an
+  `<abbr>` title, because a spelled-out heading widens a column past anything its values ever hold.
+  `Var` is the chart's variant letter and sits immediately right of the name because that is where
+  a reader arriving from the plot looks; it costs 24px at 375px, which leaves tier, model, `Var` and
+  intelligence on screen with cost/task beside them. Anything wider there goes in front of the
+  columns worth reading, so measure before adding one.
 - Model names must stay wrappable. Their column has a `min-width` floor on phones: without it the
   column collapses to its longest word and rows grow six lines tall.
 

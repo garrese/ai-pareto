@@ -6,7 +6,7 @@ import {
   serverAllowsRefresh,
 } from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
-import { withShortNames } from './names.js';
+import { isShortened, withShortNames } from './names.js';
 import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
 import { creatorSelectionStates, defaultParetoContext } from './selection.js';
@@ -372,7 +372,15 @@ function tableRow(model, tierIndex, matches) {
   nameCell.scope = 'row';
   nameCell.textContent = model.name;
 
-  row.append(tierCell, nameCell);
+  // The chart's shorthand, in a column of its own: the letter is what a reader
+  // arrives from the plot holding, and a column three characters wide carries
+  // it without taking any width from the name beside it.
+  const variantCell = document.createElement('td');
+  variantCell.className = 'variant';
+  variantCell.textContent = model.shortLetter ? `(${model.shortLetter})` : '—';
+  if (isShortened(model)) variantCell.title = `On the chart: ${model.shortName}`;
+
+  row.append(tierCell, nameCell, variantCell);
 
   for (const key of ['intelligence', 'costPerTask', 'price', 'speed', 'ttft']) {
     const cell = document.createElement('td');
@@ -783,7 +791,11 @@ function fillModelList(models) {
   for (const model of sorted) {
     const row = document.createElement('label');
     row.className = 'picker-row';
-    row.dataset.search = `${model.name} ${model.creator ?? ''}`.toLowerCase();
+    // The chart label is searchable as well as shown: a reader who saw `(b)` on
+    // the plot types back what the plot spelled out, not the configuration it
+    // stands for.
+    row.dataset.search =
+      `${model.name} ${model.shortName ?? ''} ${model.creator ?? ''}`.toLowerCase();
 
     const box = document.createElement('input');
     box.type = 'checkbox';
@@ -799,15 +811,20 @@ function fillModelList(models) {
     });
 
     // The creator sits under the name: half the models here are called
-    // something-mini and the maker is what tells two of them apart.
+    // something-mini and the maker is what tells two of them apart. The chart
+    // label joins it whenever it says something the name does not — which is
+    // the letter, the one part of a variant that only exists on the plot. When
+    // the two read alike the line above is already the label, and repeating it
+    // would be noise.
     const text = document.createElement('span');
     text.className = 'picker-text';
     const name = document.createElement('span');
     name.textContent = model.name;
-    const creator = document.createElement('span');
-    creator.className = 'picker-note';
-    creator.textContent = model.creator ?? 'Unknown creator';
-    text.append(name, creator);
+    const note = document.createElement('span');
+    note.className = 'picker-note';
+    const creator = model.creator ?? 'Unknown creator';
+    note.textContent = isShortened(model) ? `${creator} · ${model.shortName}` : creator;
+    text.append(name, note);
 
     const badge = document.createElement('span');
     badge.className = 'count';

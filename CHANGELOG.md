@@ -7,6 +7,11 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Carried the chart's shorthand into the two places a reader arrives from the plot: the model
+  picker now prints each model's chart label under its name and matches it in its own filter box,
+  and the table holds the bare variant letter in a mini-column right of the name, `(e)`, with the
+  full chart label on the cell. A letter read off a mark is now something you can look up and type
+  back, instead of a mark you have to recognise by position.
 - Let the chart's names spend the room a zoom buys. Unzoomed nothing changes: only the best front
   wearing its line is named. Zoomed, every front on show is named, best first, and once the window
   is sparse enough that everything visible fits under the label cap, the dominated cloud is named
