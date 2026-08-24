@@ -105,11 +105,20 @@ body {
 
 .header-links {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin: 14px 0 0;
   font-size: 0.92rem;
+}
+
+/* The bot pill and its caption stack so the caption can only ever be read as
+   belonging to the bot. */
+.header-bot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .header-link {
@@ -128,6 +137,17 @@ body {
 
 .header-links-note {
   color: var(--text-secondary);
+}
+
+/* Plain link, not a pill: the bot is the one call to action up here. */
+.header-source {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.header-source:hover {
+  color: var(--text-primary);
 }
 
 .meta {
@@ -831,16 +851,12 @@ body {
     margin-top: 6px;
   }
 
-  /* The links keep their weight but give up the explanatory line: on a phone
-     every row above the plot is a row the plot does not get. */
+  /* The links keep their weight and their explanatory line: stacked, the line
+     costs one row and is what tells a first-time reader what the bot is. */
   .header-links {
-    gap: 6px;
+    gap: 8px;
     margin-top: 10px;
     font-size: 0.85rem;
-  }
-
-  .header-links-note {
-    display: none;
   }
 
   .toolbar {
