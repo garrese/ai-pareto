@@ -130,6 +130,13 @@ it is fenced in rather than merely hidden in the page:
 The custom header is load-bearing beyond the token itself: a cross-origin request carrying it needs
 a preflight, and the `OPTIONS` handler advertises neither `POST` nor that header.
 
+A refresh is also refused when the window cannot fit it. `src/quota.js` compares the last observed
+`X-RateLimit-Remaining` against the number of pages the previous walk actually needed, and answers
+`429` rather than spending what is left on a walk that would die on its last page. It is deliberately
+generous about missing information — no reading yet, no rate-limit headers, or a window that has
+since reset all count as "go ahead" — because the guard exists to stop a refresh that is known to be
+doomed, not one that merely cannot be proven safe.
+
 ## Collector core
 
 `src/collector` contains I/O-independent snapshot, Pareto, event, and publication logic. The local

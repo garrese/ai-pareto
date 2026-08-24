@@ -58,6 +58,13 @@ make a static-only build possible again.
   developer tools. Do not add a query parameter, a GET route, or a page-readable token that would
   give the capability back, and do not make the page refresh on load, on a timer, or on a filter
   change. The cloud collector already spends 24 of the 100 daily requests, and the two share a key.
+- **Neither path starts a refresh the window cannot finish** (2026-08-24). `src/quota.js` weighs the
+  last observed `X-RateLimit-Remaining` against the page count the previous walk actually needed;
+  the collector defers the pass and hands its lease back, the local route answers `429`. Pass the
+  real page count, never a constant — four requests today, five past 800 models. The guard is
+  deliberately permissive when it has nothing to go on (no reading, no headers, window already
+  reset): its job is to stop a doomed refresh, not to demand proof of safety. A `resume` or `drain`
+  pass is never gated, because neither touches upstream.
 - This endpoint **does** return `X-RateLimit-Limit/Remaining/Reset`. `/api/usage` serves the last
   snapshot from `.cache/usage.json` rather than spending a request to ask.
 - Docs: <https://artificialanalysis.ai/data-api/docs>

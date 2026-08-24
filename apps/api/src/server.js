@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 import { loadConfig } from './config.js';
 import { ArtificialAnalysisClient } from './aa-client.js';
+import { DEFAULT_PAGES_NEEDED, refreshBudget } from './quota.js';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -119,6 +120,22 @@ export function createRequestHandler({ config, client, refreshToken }) {
   // of the paginated endpoint, which is eight of the hundred daily requests.
   let inFlightRefresh = null;
 
+  /**
+   * Refuses a refresh that the remaining quota cannot complete. Both files it
+   * reads are written by the last real upstream call, so this costs nothing.
+   */
+  async function budgetForRefresh() {
+    const [usage, cached] = await Promise.all([
+      client.getUsage().catch(() => null),
+      client.getCachedModels().catch(() => null),
+    ]);
+    return refreshBudget({
+      rateLimit: usage,
+      pagesNeeded: cached?.pages ?? DEFAULT_PAGES_NEEDED,
+      now: new Date(),
+    });
+  }
+
   async function refreshOnce() {
     inFlightRefresh ??= client.getModels({ force: true }).finally(() => {
       inFlightRefresh = null;
@@ -168,6 +185,12 @@ export function createRequestHandler({ config, client, refreshToken }) {
           { error: 'Wrong or missing refresh token. It is printed in the server console.' },
           { cors: false },
         );
+        return;
+      }
+
+      const budget = await budgetForRefresh();
+      if (!budget.allowed) {
+        sendJson(res, 429, { error: `Refresh refused: ${budget.reason}.` }, { cors: false });
         return;
       }
 

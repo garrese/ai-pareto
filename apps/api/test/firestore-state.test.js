@@ -214,3 +214,115 @@ test('Firestore state resumes prepared work and rejects overlapping live leases'
   assert.equal(resumed.action, 'resume');
   assert.equal(resumed.refresh.executionId, 'execution-1');
 });
+
+const REFRESH_DOC = 'refresh-state/current';
+
+test('the quota reading survives a claim so a retry can guard against it', async () => {
+  const firestore = new FakeFirestore();
+  const state = new FirestoreCollectorState(firestore);
+  const rateLimit = {
+    limit: 100,
+    remaining: 2,
+    resetsAt: '2026-08-24T18:00:00.000Z',
+    source: 'headers',
+  };
+
+  // A completed refresh leaves both figures on the document.
+  firestore.documents.set(REFRESH_DOC, {
+    status: 'complete',
+    snapshotId: 'snapshot-previous',
+    rateLimit,
+    pages: 4,
+  });
+
+  const claim = await state.claimExecution({
+    executionId: 'execution-next',
+    claimedAt: '2026-08-24T12:00:00.000Z',
+    leaseExpiresAt: '2026-08-24T12:15:00.000Z',
+  });
+
+  assert.equal(claim.action, 'fetch');
+  assert.deepEqual(claim.rateLimit, rateLimit);
+  assert.equal(claim.pages, 4);
+
+  // And they are still on the running document, which is the case that matters:
+  // the next execution after one that died mid-refresh.
+  const running = firestore.documents.get(REFRESH_DOC);
+  assert.deepEqual(running.rateLimit, rateLimit);
+  assert.equal(running.pages, 4);
+});
+
+test('a prepared snapshot records what the walk actually cost', async () => {
+  const firestore = new FakeFirestore();
+  const state = new FirestoreCollectorState(firestore);
+
+  await state.claimExecution({
+    executionId: 'execution-1',
+    claimedAt: '2026-08-24T12:00:00.000Z',
+    leaseExpiresAt: '2026-08-24T12:15:00.000Z',
+  });
+  await state.prepareSnapshot({
+    executionId: 'execution-1',
+    snapshotId: 'snapshot-1',
+    fetchedAt: '2026-08-24T12:00:00.000Z',
+    generatedAt: '2026-08-24T12:00:01.000Z',
+    modelCount: MODELS.length,
+    rateLimit: { limit: 100, remaining: 96, resetsAt: '2026-08-25T12:00:00.000Z' },
+    pages: 5,
+    manifest: manifest('snapshot-1'),
+    paretoDocument: pareto('snapshot-1', ['model-b']),
+    models: MODELS,
+  });
+
+  assert.equal(firestore.documents.get(REFRESH_DOC).pages, 5);
+});
+
+test('releasing a claim expires the lease without losing what the document held', async () => {
+  const firestore = new FakeFirestore();
+  const state = new FirestoreCollectorState(firestore);
+  firestore.documents.set(REFRESH_DOC, {
+    status: 'running',
+    executionId: 'execution-deferred',
+    claimedAt: '2026-08-24T12:00:00.000Z',
+    leaseExpiresAt: '2026-08-24T12:15:00.000Z',
+    previousSnapshotId: 'snapshot-previous',
+    rateLimit: { limit: 100, remaining: 2 },
+    pages: 4,
+  });
+
+  await state.releaseExecution({
+    executionId: 'execution-deferred',
+    releasedAt: '2026-08-24T12:00:01.000Z',
+  });
+
+  const released = firestore.documents.get(REFRESH_DOC);
+  assert.equal(released.leaseExpiresAt, '2026-08-24T12:00:01.000Z');
+  assert.equal(released.previousSnapshotId, 'snapshot-previous');
+  assert.equal(released.pages, 4);
+
+  // A later execution is then free to take it, previous snapshot intact.
+  const claim = await state.claimExecution({
+    executionId: 'execution-later',
+    claimedAt: '2026-08-24T16:17:00.000Z',
+    leaseExpiresAt: '2026-08-24T16:32:00.000Z',
+  });
+  assert.equal(claim.action, 'fetch');
+  assert.equal(claim.previousSnapshotId, 'snapshot-previous');
+});
+
+test('releasing a claim owned by another execution changes nothing', async () => {
+  const firestore = new FakeFirestore();
+  const state = new FirestoreCollectorState(firestore);
+  firestore.documents.set(REFRESH_DOC, {
+    status: 'running',
+    executionId: 'execution-owner',
+    leaseExpiresAt: '2026-08-24T12:15:00.000Z',
+  });
+
+  await state.releaseExecution({
+    executionId: 'execution-impostor',
+    releasedAt: '2026-08-24T12:00:01.000Z',
+  });
+
+  assert.equal(firestore.documents.get(REFRESH_DOC).leaseExpiresAt, '2026-08-24T12:15:00.000Z');
+});

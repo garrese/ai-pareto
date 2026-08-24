@@ -21,6 +21,12 @@ because the evolution they integrate appears once under its work commit.
   poking the DOM does not grant it. Concurrent clicks collapse into one upstream walk.
 - Fixed the page claiming a successful refresh when the upstream call had failed and the server had
   fallen back to cached data.
+- Stopped either refresh path from starting a walk the remaining quota cannot finish. The collector
+  had no such check despite the architecture document describing one, so with three requests left it
+  would spend them and still produce no snapshot. It now defers the pass, logs why, and hands its
+  lease back; the local button answers 429 with the same reason. The decision is sized by the page
+  count the last successful walk really needed, because a constant would be wrong the moment the
+  dataset passes 800 models.
 
 ## 2026-08-15
 

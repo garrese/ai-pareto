@@ -269,3 +269,139 @@ test('a refresh logs real data changes, every changed front, and the publication
     publicationEvent.eventId,
   );
 });
+
+test('a refresh that would run out of quota mid-walk is deferred, not attempted', async () => {
+  const calls = [];
+  const state = {
+    async claimExecution() {
+      calls.push('claim');
+      return {
+        action: 'fetch',
+        previousSnapshotId: 'snapshot-previous',
+        // Two left, and the last walk needed four.
+        rateLimit: {
+          limit: 100,
+          remaining: 2,
+          resetsAt: '2026-08-24T18:00:00.000Z',
+          source: 'headers',
+        },
+        pages: 4,
+      };
+    },
+    async releaseExecution({ executionId, releasedAt }) {
+      calls.push(`release:${executionId}:${releasedAt}`);
+    },
+    async prepareSnapshot() {
+      throw new Error('must not prepare a snapshot');
+    },
+    async listPendingEvents() {
+      throw new Error('must not drain the outbox');
+    },
+  };
+  const logged = [];
+
+  const result = await runCollector({
+    executionId: 'execution-short',
+    leaseSeconds: 900,
+    source: {
+      async fetchModels() {
+        throw new Error('must not spend the last requests on a walk that cannot finish');
+      },
+    },
+    storage: {
+      async putImmutable() {
+        throw new Error('must not write anything');
+      },
+      async putManifest() {
+        throw new Error('must not write anything');
+      },
+    },
+    state,
+    eventBus: { async publish() {} },
+    now: () => new Date('2026-08-24T12:00:00.000Z'),
+    log: (level, message, fields) => logged.push([level, fields.event, fields]),
+  });
+
+  assert.equal(result.status, 'deferred');
+  assert.equal(result.fetched, false);
+  assert.match(result.reason, /needs 4 requests and only 2 of 100 are left/);
+  // The claim is handed back, or the next scheduled pass skips as 'busy'.
+  assert.deepEqual(calls, ['claim', 'release:execution-short:2026-08-24T12:00:00.000Z']);
+
+  const deferred = logged.find(([, event]) => event === 'collector.refresh.deferred');
+  assert.ok(deferred, 'the deferral has to be visible in the logs');
+  assert.equal(deferred[0], 'NOTICE');
+  assert.equal(deferred[2].remaining, 2);
+  assert.equal(deferred[2].pagesNeeded, 4);
+});
+
+test('an exhausted quota still lets pending publications drain, since they cost nothing', async () => {
+  const calls = [];
+  const result = await runCollector({
+    executionId: 'execution-drain',
+    leaseSeconds: 900,
+    source: {
+      async fetchModels() {
+        throw new Error('must not fetch');
+      },
+    },
+    storage: { async putImmutable() {}, async putManifest() {} },
+    state: {
+      async claimExecution() {
+        // No quota left at all, but this pass was never going to fetch.
+        return {
+          action: 'drain',
+          refresh: { snapshotId: 'snapshot-prepared' },
+          rateLimit: { limit: 100, remaining: 0, resetsAt: '2026-08-24T18:00:00.000Z' },
+          pages: 4,
+        };
+      },
+      async releaseExecution() {
+        throw new Error('a drain never claims a refresh to release');
+      },
+      async listPendingEvents() {
+        if (calls.includes('enqueued')) return [];
+        return [pendingEvent];
+      },
+      async markEventEnqueued() {
+        calls.push('enqueued');
+      },
+    },
+    eventBus: {
+      async publish() {
+        return 'message-1';
+      },
+    },
+    now: () => new Date('2026-08-24T12:00:00.000Z'),
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.fetched, false);
+  assert.equal(result.enqueued, 1);
+});
+
+test('a state adapter without releaseExecution still defers rather than crashing', async () => {
+  const result = await runCollector({
+    executionId: 'execution-old-adapter',
+    leaseSeconds: 900,
+    source: {
+      async fetchModels() {
+        throw new Error('must not fetch');
+      },
+    },
+    storage: { async putImmutable() {}, async putManifest() {} },
+    state: {
+      async claimExecution() {
+        return {
+          action: 'fetch',
+          rateLimit: { limit: 100, remaining: 1, resetsAt: '2026-08-24T18:00:00.000Z' },
+          pages: 4,
+        };
+      },
+    },
+    eventBus: { async publish() {} },
+    now: () => new Date('2026-08-24T12:00:00.000Z'),
+  });
+
+  assert.equal(result.status, 'deferred');
+});

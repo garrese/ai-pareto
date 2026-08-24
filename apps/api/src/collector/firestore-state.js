@@ -46,14 +46,22 @@ export class FirestoreCollectorState {
         current?.status === 'complete'
           ? current.snapshotId
           : (current?.previousSnapshotId ?? null);
+      // The last quota reading and page count are carried across the claim, not
+      // dropped with the rest of the previous document: the execution about to
+      // fetch needs them to decide whether a full walk can finish, and the case
+      // that matters most is a retry of a run that died mid-refresh.
+      const rateLimit = current?.rateLimit ?? null;
+      const pages = current?.pages ?? null;
       transaction.set(this.refreshRef, {
         status: 'running',
         executionId,
         claimedAt,
         leaseExpiresAt,
         previousSnapshotId,
+        rateLimit,
+        pages,
       });
-      return { action: 'fetch', previousSnapshotId };
+      return { action: 'fetch', previousSnapshotId, rateLimit, pages };
     });
   }
 
@@ -64,6 +72,7 @@ export class FirestoreCollectorState {
     generatedAt,
     modelCount,
     rateLimit,
+    pages = null,
     manifest,
     paretoDocument,
     models = [],
@@ -127,12 +136,31 @@ export class FirestoreCollectorState {
         generatedAt,
         modelCount,
         rateLimit,
+        // What the walk actually cost, so the next execution guards against the
+        // real figure rather than a constant that the dataset outgrows.
+        pages,
         manifest,
         eventIds: events.map(({ eventId }) => eventId),
         leaseExpiresAt: null,
       });
 
       return { eventCount: events.length, events };
+    });
+  }
+
+  /**
+   * Gives up a claim without having fetched anything, by expiring the lease
+   * rather than deleting the document: `previousSnapshotId`, the quota reading
+   * and the page count all have to survive, and a `running` record with a spent
+   * lease is exactly what `claimExecution` treats as free to take.
+   */
+  async releaseExecution({ executionId, releasedAt }) {
+    await this.firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(this.refreshRef);
+      const current = snapshot.exists ? snapshot.data() : null;
+      if (current?.status !== 'running' || current.executionId !== executionId) return;
+
+      transaction.set(this.refreshRef, { ...current, leaseExpiresAt: releasedAt });
     });
   }
 

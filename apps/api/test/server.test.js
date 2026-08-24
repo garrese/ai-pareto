@@ -253,3 +253,46 @@ test('a double click costs one upstream walk, not two', async () => {
   assert.equal(b.status, 200);
   assert.equal(client.calls.getModels.length, 1);
 });
+
+test('the button cannot spend the last requests on a walk that cannot finish', async () => {
+  const client = stubClient({
+    async getUsage() {
+      return {
+        limit: 100,
+        remaining: 2,
+        resetsAt: '2099-01-01T00:00:00.000Z',
+        source: 'headers',
+      };
+    },
+    async getCachedModels() {
+      return { ...cachedResult, pages: 4 };
+    },
+  });
+  const { handle } = handlerFor({ client });
+
+  const res = await call(handle, request({ method: 'POST', token: TOKEN }));
+
+  assert.equal(res.status, 429);
+  assert.match(res.body.error, /needs 4 requests and only 2 of 100 are left/);
+  assert.deepEqual(client.calls.getModels, []);
+});
+
+test('a window that has already reset does not block the button', async () => {
+  const client = stubClient({
+    async getUsage() {
+      // Nothing left as of the reading, but that window is long gone.
+      return {
+        limit: 100,
+        remaining: 0,
+        resetsAt: '2020-01-01T00:00:00.000Z',
+        source: 'headers',
+      };
+    },
+  });
+  const { handle } = handlerFor({ client });
+
+  const res = await call(handle, request({ method: 'POST', token: TOKEN }));
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(client.calls.getModels, [{ force: true }]);
+});
