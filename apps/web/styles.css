@@ -537,6 +537,35 @@ body {
   text-decoration-color: var(--text-muted);
 }
 
+/* The zoom buttons close the legend row: outside the plot, because any corner
+   of the plot is data on some pair of axes. */
+.legend-zoom {
+  margin-left: auto;
+  gap: 4px;
+}
+
+.legend-zoom button {
+  min-width: 28px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.legend-zoom button:hover {
+  border-color: var(--baseline);
+}
+
+.legend-zoom button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .legend-match::before {
   content: '';
   width: 12px;
@@ -580,6 +609,24 @@ body {
 
 .chart svg {
   display: block;
+  /* One finger still scrolls the page; pinches are the chart's. `pan-y` also
+     bars the browser from pinch-zooming the page from on top of the plot. */
+  touch-action: pan-y;
+}
+
+/* Zoomed, dragging the plot pans the window. */
+.chart svg.is-zoomed .hover-surface {
+  cursor: grab;
+}
+
+.chart svg.is-panning .hover-surface {
+  cursor: grabbing;
+}
+
+/* A live gesture only transforms the layer as a preview: names would stretch
+   with it, so they sit the moment out. The re-render brings them back. */
+.chart svg.is-zooming .mark-label {
+  display: none;
 }
 
 .chart-empty {

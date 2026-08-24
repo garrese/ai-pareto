@@ -98,6 +98,15 @@ const LABEL_RANKED_ONLY_ABOVE = 10;
 const edgeMargin = (compact) =>
   (compact ? COMPACT_LABEL_RINGS : LABEL_RINGS)[0] + LABEL_HEIGHT / 2 + 2;
 
+/**
+ * The deepest a zoom can go: the window may not shrink below 1/32 of the full
+ * projected span per axis. Past that the tick formatters run out of decimals
+ * and neighbouring ticks start printing the same label.
+ */
+const MAX_ZOOM = 32;
+/** Wheel zoom sensitivity; trackpad pinches arrive as Ctrl+wheel with small deltas. */
+const WHEEL_ZOOM_RATE = 0.0022;
+
 const el = (name, attrs = {}) => {
   const node = document.createElementNS(SVG_NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
@@ -110,34 +119,82 @@ const el = (name, attrs = {}) => {
  * @param {object} options
  * @param {number} [options.margin]  pixels to keep clear beyond the extreme values,
  *   on top of the proportional padding, ignored if the range is too short to give it
+ * @param {number[]} [options.domain]  explicit raw-value window to show instead of
+ *   fitting the values — a zoom. Taken exactly: the padding below exists to fit
+ *   data, and re-padding a window would drift it on every render.
  */
-function makeScale({ values, type, range, margin = 0 }) {
+function makeScale({ values, type, range, margin = 0, domain = null }) {
   const useLog = type === 'log' && values.every((v) => v > 0);
   const project = useLog ? Math.log10 : (v) => v;
+  const unproject = useLog ? (p) => 10 ** p : (p) => p;
 
-  let lo = Math.min(...values.map(project));
-  let hi = Math.max(...values.map(project));
-  if (lo === hi) {
-    lo -= 0.5;
-    hi += 0.5;
+  let lo;
+  let hi;
+  if (domain) {
+    lo = project(domain[0]);
+    hi = project(domain[1]);
+  } else {
+    lo = Math.min(...values.map(project));
+    hi = Math.max(...values.map(project));
+    if (lo === hi) {
+      lo -= 0.5;
+      hi += 0.5;
+    }
+
+    // Padding the domain also stretches it, so the pixel margin it buys is less
+    // than the padding itself: solving p / (span + 2p) = margin / pixels for p is
+    // what actually leaves `margin` clear once the padded domain is mapped back.
+    const span = hi - lo;
+    const pixels = Math.abs(range[1] - range[0]);
+    const reserved = pixels > 2 * margin + 1 ? (margin * span) / (pixels - 2 * margin) : 0;
+
+    const pad = Math.max(span * 0.06, reserved);
+    lo -= pad;
+    hi += pad;
   }
-
-  // Padding the domain also stretches it, so the pixel margin it buys is less
-  // than the padding itself: solving p / (span + 2p) = margin / pixels for p is
-  // what actually leaves `margin` clear once the padded domain is mapped back.
-  const span = hi - lo;
-  const pixels = Math.abs(range[1] - range[0]);
-  const reserved = pixels > 2 * margin + 1 ? (margin * span) / (pixels - 2 * margin) : 0;
-
-  const pad = Math.max(span * 0.06, reserved);
-  lo -= pad;
-  hi += pad;
 
   const [r0, r1] = range;
   return {
+    lo,
+    hi,
+    project,
+    unproject,
     map: (v) => r0 + ((project(v) - lo) / (hi - lo)) * (r1 - r0),
+    /** The projected-domain value sitting at pixel `u` — `map`, run backwards. */
+    projectedAt: (u) => lo + ((u - r0) / (r1 - r0)) * (hi - lo),
     ticks: (target) => (useLog ? logTicks(lo, hi, target) : linearTicks(lo, hi, target)),
   };
+}
+
+/**
+ * Fits a stored zoom window into the field a render actually has — the filters
+ * may have changed since the window was set. Works in the scale's projected
+ * space so a log axis zooms by decades, and returns raw values ready to be a
+ * `domain`, or null when the window would show the whole field anyway.
+ */
+function clampedWindow(full, stored) {
+  if (!stored) return null;
+  const fullSpan = full.hi - full.lo;
+  let lo = full.project(stored[0]);
+  let hi = full.project(stored[1]);
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) return null;
+  if (hi - lo >= fullSpan) return null;
+
+  const minSpan = fullSpan / MAX_ZOOM;
+  if (hi - lo < minSpan) {
+    const centre = (lo + hi) / 2;
+    lo = centre - minSpan / 2;
+    hi = centre + minSpan / 2;
+  }
+  if (lo < full.lo) {
+    hi += full.lo - lo;
+    lo = full.lo;
+  }
+  if (hi > full.hi) {
+    lo -= hi - full.hi;
+    hi = full.hi;
+  }
+  return [full.unproject(lo), full.unproject(hi)];
 }
 
 function linearTicks(lo, hi, target = 7) {
@@ -271,17 +328,17 @@ function leaderFor(target, box) {
  * so a crowded chart degrades instead of emptying out — see the cost constants.
  *
  * @param {object} options
- * @param {SVGElement} options.svg   must already be in the document: widths are measured
+ * @param {SVGElement} options.parent  must already be in the document: widths are measured
  * @param {any[]} options.targets    positions to name, most important first
  * @param {any[]} options.obstacles  every plotted position, labelled or not
  * @param {any[]} options.segments   the drawn front lines, in chart coordinates
  * @returns {number} how many of the labels it placed hide part of a name
  */
-function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
+function drawLabels({ parent, targets, obstacles, segments, plot, compact }) {
   if (targets.length === 0) return 0;
 
   const group = el('g', { class: 'mark-label' });
-  svg.append(group);
+  parent.append(group);
 
   const rings = compact ? COMPACT_LABEL_RINGS : LABEL_RINGS;
   const reach = rings[rings.length - 1];
@@ -395,8 +452,15 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
  * @param {Set<number>|null} options.visibleFrontLines  front lines to draw, or null for all.
  *   Weaker than `visibleTiers` on purpose: it hides a line, never the models on it.
  * @param {boolean} options.showLabels  whether models are named on the plot
+ * @param {{x: number[], y: number[]}|null} options.zoom  raw-value window to show, or
+ *   null for the whole field. A view, never a filter: fronts, legend and table
+ *   are untouched, marks outside the window are merely clipped away.
  * @param {(model: any, tierIndex: number|null, event: MouseEvent|null) => void} options.onHover
- * @returns {number} how many drawn labels are shortened, so the caller can say so
+ * @param {(zoom: {x: number[], y: number[]}|null) => void} options.onZoom  a gesture
+ *   settled on a new window (or zoomed all the way back out); re-render with it
+ * @returns {{shortened: number, zoomBy: ((factor: number) => void)|null}}
+ *   how many drawn labels are shortened, and a hook for the +/− buttons that
+ *   zooms about the plot centre through the same commit path as the gestures
  */
 export function renderChart({
   container,
@@ -408,7 +472,9 @@ export function renderChart({
   visibleTiers,
   visibleFrontLines,
   showLabels,
+  zoom,
   onHover,
+  onZoom,
 }) {
   const shows = (tier) => !visibleTiers || visibleTiers.has(tier);
   // A front's line needs its models on show too: a line over a hidden tier
@@ -433,7 +499,7 @@ export function renderChart({
     empty.className = 'chart-empty';
     empty.textContent = 'Nothing to plot — every model is filtered out or missing one of the metrics.';
     container.append(empty);
-    return 0;
+    return { shortened: 0, zoomBy: null };
   }
 
   const yTitle = document.createElement('div');
@@ -459,7 +525,9 @@ export function renderChart({
 
   // The vertical scale is independent of the left gutter, so it can be built
   // first and asked what its labels will say — which is what sets the gutter.
-  const y = makeScale({
+  // The full (unzoomed) scale is always built: it is the outer bound a zoom
+  // window is clamped into, and the display scale when there is no window.
+  const fullY = makeScale({
     values: plotted.map((m) => m[yMetric.key]),
     type: yMetric.scale,
     range: [plotTop + plotHeight, plotTop],
@@ -468,6 +536,15 @@ export function renderChart({
     // are placed inwards instead. Vertically a label is 13px and fits.
     margin: edgeMargin(compact),
   });
+  const windowY = clampedWindow(fullY, zoom?.y);
+  const y = windowY
+    ? makeScale({
+        values: plotted.map((m) => m[yMetric.key]),
+        type: yMetric.scale,
+        range: [plotTop + plotHeight, plotTop],
+        domain: windowY,
+      })
+    : fullY;
   const yTicks = y.ticks(Math.max(4, Math.round(plotHeight / 60)));
 
   const labelGap = compact ? 4 : 8;
@@ -484,11 +561,21 @@ export function renderChart({
     height: plotHeight,
   };
 
-  const x = makeScale({
+  const fullX = makeScale({
     values: plotted.map((m) => m[xMetric.key]),
     type: xMetric.scale,
     range: [plot.x, plot.x + plot.width],
   });
+  const windowX = clampedWindow(fullX, zoom?.x);
+  const x = windowX
+    ? makeScale({
+        values: plotted.map((m) => m[xMetric.key]),
+        type: xMetric.scale,
+        range: [plot.x, plot.x + plot.width],
+        domain: windowX,
+      })
+    : fullX;
+  const zoomed = Boolean(windowX || windowY);
 
   // Roughly one label per 110px horizontally.
   const xTicks = x.ticks(Math.max(compact ? 3 : 4, Math.round(plot.width / 110)));
@@ -507,6 +594,7 @@ export function renderChart({
   // greying the plot would only punish the typing.
   const searching = Boolean(matches && matches.size > 0);
   if (searching) svg.classList.add('is-searching');
+  if (zoomed) svg.classList.add('is-zoomed');
 
   // In the document from here on, because label widths have to be measured.
   viewport.append(svg);
@@ -552,6 +640,21 @@ export function renderChart({
   }
   svg.append(tickLabels);
 
+  // Everything positioned by data goes inside a clipped layer: zoomed, marks
+  // and front lines run past the window and must not paint over the gutters.
+  // The inner group is also what a live gesture transforms as its preview —
+  // cheap pixels while fingers move, the real re-render on commit.
+  const defs = el('defs');
+  const clip = el('clipPath', { id: 'plot-clip' });
+  clip.append(el('rect', { x: plot.x, y: plot.y, width: plot.width, height: plot.height }));
+  defs.append(clip);
+  svg.append(defs);
+
+  const zoomLayer = el('g', { class: 'zoom-layer' });
+  const clipped = el('g', { 'clip-path': 'url(#plot-clip)' });
+  clipped.append(zoomLayer);
+  svg.append(clipped);
+
   // Marks -------------------------------------------------------------------
   const markClass = (model) => (matches && matches.has(model.id) ? 'is-match' : '');
 
@@ -568,7 +671,7 @@ export function renderChart({
         }),
       );
     }
-    svg.append(rest);
+    zoomLayer.append(rest);
   }
 
   const xObjective = { value: (m) => m[xMetric.key], dir: xMetric.dir };
@@ -587,7 +690,7 @@ export function renderChart({
     if (path.length > 1) {
       const points = path.map((p) => ({ x: x.map(p.x), y: y.map(p.y) }));
       const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
-      svg.append(el('path', { class: `front-line tier-${index}`, d }));
+      zoomLayer.append(el('path', { class: `front-line tier-${index}`, d }));
       for (let i = 1; i < points.length; i += 1) {
         frontSegments.push({
           x1: points[i - 1].x,
@@ -612,7 +715,7 @@ export function renderChart({
         }),
       );
     }
-    svg.append(group);
+    zoomLayer.append(group);
   }
 
   const positions = plotted.map((model) => ({
@@ -623,14 +726,25 @@ export function renderChart({
     match: Boolean(matches && matches.has(model.id)),
   }));
 
+  // Zoomed, whatever the window pushed off the plot is clipped out of the
+  // pixels, so it must not be nameable or hoverable either.
+  const inPlot = (p) =>
+    p.px >= plot.x && p.px <= plot.x + plot.width && p.py >= plot.y && p.py <= plot.y + plot.height;
+  const visiblePositions = zoomed ? positions.filter(inPlot) : positions;
+
   // Names -------------------------------------------------------------------
   // The best front on show is named — that row of models is what the page
   // exists to point at, and the dominated cloud never gets a name because there
-  // are hundreds of it.
+  // are hundreds of it. "On show" includes the zoom window: a window holding
+  // only silver names silver, because a gold front entirely outside it would
+  // otherwise claim the labels and name nothing.
+  const visibleIds = new Set(visiblePositions.map((p) => p.model.id));
   const bestFrontTargets = () => {
-    const topTier = fronts.findIndex((front, index) => shows(index) && front.length > 0);
+    const topTier = fronts.findIndex(
+      (front, index) => shows(index) && front.some((model) => visibleIds.has(model.id)),
+    );
     if (topTier === -1) return [];
-    const targets = positions.filter((p) => tierOf.get(p.model.id) === topTier);
+    const targets = visiblePositions.filter((p) => tierOf.get(p.model.id) === topTier);
     if (targets.length === 0) return [];
     const leftmost = Math.min(...targets.map((p) => p.px));
     const rightmost = Math.max(...targets.map((p) => p.px));
@@ -661,7 +775,7 @@ export function renderChart({
   if (showLabels && searching) {
     // A search takes the labels over: the matches are named wherever they sit,
     // so the answer to the query is spelled out first.
-    let matched = positions.filter((p) => matches.has(p.model.id));
+    let matched = visiblePositions.filter((p) => matches.has(p.model.id));
     if (matched.length > LABEL_RANKED_ONLY_ABOVE) {
       matched = matched.filter((p) => p.ranked);
     }
@@ -691,13 +805,165 @@ export function renderChart({
     labelled = bestFrontTargets();
   }
   const shortened = drawLabels({
-    svg,
+    parent: zoomLayer,
     targets: labelled.slice(0, LABEL_LIMIT),
-    obstacles: positions,
+    obstacles: visiblePositions,
     segments: frontSegments,
     plot,
     compact,
   });
+
+  // Zoom gestures -------------------------------------------------------------
+  // Pinch on touch, Ctrl/⌘ + wheel with a mouse — a trackpad pinch arrives as
+  // exactly that — drag-to-pan once zoomed, and the legend's +/− buttons via
+  // `zoomBy`. While a gesture is live only the layer's transform moves: labels
+  // hide and strokes stretch for a moment. The window it settles on goes out
+  // through `onZoom`, whose re-render rebuilds this svg from scratch.
+  const pending = { s: 1, tx: 0, ty: 0 };
+  const hasPending = () => pending.s !== 1 || pending.tx !== 0 || pending.ty !== 0;
+  let wheelTimer = 0;
+
+  const toViewBox = (event) => {
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * width,
+      y: ((event.clientY - rect.top) / rect.height) * height,
+    };
+  };
+
+  /** One more affine step u′ = s·(u − c) + c + d, composed onto the preview. */
+  const gestureStep = ({ s = 1, cx = 0, cy = 0, dx = 0, dy = 0 }) => {
+    pending.s *= s;
+    pending.tx = s * pending.tx + cx * (1 - s) + dx;
+    pending.ty = s * pending.ty + cy * (1 - s) + dy;
+    svg.classList.add('is-zooming');
+    zoomLayer.setAttribute(
+      'transform',
+      `translate(${pending.tx} ${pending.ty}) scale(${pending.s})`,
+    );
+  };
+
+  const commitGesture = () => {
+    clearTimeout(wheelTimer);
+    if (!hasPending()) return;
+    // The window is read off the ends of the plot: the value shown at each end
+    // after the gesture is the value that sat at that pixel's inverse image.
+    const wasAt = (u, t) => (u - t) / pending.s;
+    const rawX = [plot.x, plot.x + plot.width].map((u) =>
+      x.unproject(x.projectedAt(wasAt(u, pending.tx))),
+    );
+    const rawY = [plot.y + plot.height, plot.y].map((u) =>
+      y.unproject(y.projectedAt(wasAt(u, pending.ty))),
+    );
+    const nextX = clampedWindow(fullX, rawX);
+    const nextY = clampedWindow(fullY, rawY);
+    onZoom(
+      nextX || nextY
+        ? {
+            x: nextX ?? [fullX.unproject(fullX.lo), fullX.unproject(fullX.hi)],
+            y: nextY ?? [fullY.unproject(fullY.lo), fullY.unproject(fullY.hi)],
+          }
+        : null,
+    );
+  };
+
+  const zoomBy = (factor) => {
+    gestureStep({ s: factor, cx: plot.x + plot.width / 2, cy: plot.y + plot.height / 2 });
+    commitGesture();
+  };
+
+  svg.addEventListener(
+    'wheel',
+    (event) => {
+      // A plain wheel keeps scrolling the page; Ctrl (or ⌘) claims it for the
+      // chart, which is also how browsers report a trackpad pinch.
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const at = toViewBox(event);
+      const factor = Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.05 : WHEEL_ZOOM_RATE));
+      gestureStep({ s: factor, cx: at.x, cy: at.y });
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(commitGesture, 140);
+    },
+    { passive: false },
+  );
+
+  const touchPoints = new Map();
+  let panPointer = null;
+
+  svg.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'touch') {
+      touchPoints.set(event.pointerId, toViewBox(event));
+    } else if (event.button === 0 && zoomed) {
+      panPointer = event.pointerId;
+      touchPoints.set(event.pointerId, toViewBox(event));
+      try {
+        svg.setPointerCapture(event.pointerId);
+      } catch {
+        // A pointer already gone by the time this runs cannot be captured;
+        // the pan still works, it just loses the drag at the svg's edge.
+      }
+      svg.classList.add('is-panning');
+    }
+  });
+
+  svg.addEventListener('pointermove', (event) => {
+    if (!touchPoints.has(event.pointerId)) return;
+    const next = toViewBox(event);
+    if (event.pointerType === 'touch' && touchPoints.size === 2) {
+      const [idA, idB] = [...touchPoints.keys()];
+      const a0 = touchPoints.get(idA);
+      const b0 = touchPoints.get(idB);
+      touchPoints.set(event.pointerId, next);
+      const a1 = touchPoints.get(idA);
+      const b1 = touchPoints.get(idB);
+      const before = Math.hypot(a0.x - b0.x, a0.y - b0.y);
+      const after = Math.hypot(a1.x - b1.x, a1.y - b1.y);
+      const mid0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
+      const mid1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
+      gestureStep({
+        // Fingers nearly on top of each other would make the ratio explode.
+        s: before > 24 ? after / before : 1,
+        cx: mid0.x,
+        cy: mid0.y,
+        dx: mid1.x - mid0.x,
+        dy: mid1.y - mid0.y,
+      });
+    } else if (event.pointerId === panPointer) {
+      const prev = touchPoints.get(event.pointerId);
+      touchPoints.set(event.pointerId, next);
+      gestureStep({ dx: next.x - prev.x, dy: next.y - prev.y });
+    } else {
+      touchPoints.set(event.pointerId, next);
+    }
+  });
+
+  const endGesturePointer = (event) => {
+    if (!touchPoints.delete(event.pointerId)) return;
+    if (event.pointerId === panPointer) {
+      panPointer = null;
+      svg.classList.remove('is-panning');
+      commitGesture();
+    } else if (event.pointerType === 'touch' && touchPoints.size < 2 && hasPending()) {
+      // The pinch is over the moment a second finger is no longer down.
+      commitGesture();
+    }
+  };
+  svg.addEventListener('pointerup', endGesturePointer);
+  svg.addEventListener('pointercancel', endGesturePointer);
+
+  // `touch-action: pan-y` keeps one finger scrolling the page and bars the
+  // browser from pinch-zooming it off the plot — but iOS also scroll-pans with
+  // two fingers, and that much is refused by hand so the pinch stays ours.
+  svg.addEventListener(
+    'touchmove',
+    (event) => {
+      if (event.touches.length >= 2) event.preventDefault();
+    },
+    { passive: false },
+  );
+  // Safari's proprietary pinch fallback would still zoom the page under us.
+  svg.addEventListener('gesturestart', (event) => event.preventDefault());
 
   // Hover layer -------------------------------------------------------------
   const highlight = el('circle', { class: 'hover-ring', r: 9, opacity: 0 });
@@ -709,16 +975,19 @@ export function renderChart({
     width: plot.width,
     height: plot.height,
     fill: 'transparent',
+    class: 'hover-surface',
   });
 
   surface.addEventListener('mousemove', (event) => {
+    // Mid-gesture the layer is transformed and every stored position is stale.
+    if (panPointer !== null || hasPending()) return;
     const rect = svg.getBoundingClientRect();
     const vx = ((event.clientX - rect.left) / rect.width) * width;
     const vy = ((event.clientY - rect.top) / rect.height) * height;
 
     let best = null;
     let bestDistance = Infinity;
-    for (const p of positions) {
+    for (const p of visiblePositions) {
       const distance = (p.px - vx) ** 2 + (p.py - vy) ** 2;
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -744,5 +1013,5 @@ export function renderChart({
 
   svg.append(surface);
 
-  return shortened;
+  return { shortened, zoomBy };
 }

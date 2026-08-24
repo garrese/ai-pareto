@@ -87,6 +87,13 @@ const state = {
   tiers: new Set(),
   /** Front lines being drawn, 0–2. Unlike `tiers` this never hides a model. */
   frontLines: new Set(),
+  /**
+   * The chart's zoom window, `{x: [lo, hi], y: [lo, hi]}` in metric values, or
+   * null for the whole field. A view, never a filter: fronts, legend and table
+   * ignore it. It survives filter and search changes but not a change of what
+   * the axes mean — metric and log toggles reset it.
+   */
+  zoom: null,
   query: '',
   view: 'chart',
 };
@@ -210,6 +217,50 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
     match.append(label, count);
     dom.legend.append(match);
   }
+}
+
+/** A gesture ended on a new window (or none); redraw the chart inside it. */
+function setZoom(zoom) {
+  state.zoom = zoom;
+  render();
+}
+
+/**
+ * Lives in the legend row, outside the plot: any corner of the plot is data on
+ * some pair of axes. The buttons are the discoverable path — and the keyboard
+ * one — next to gestures that leave no trace in the UI.
+ */
+function renderZoomControls(zoomBy) {
+  if (!zoomBy) return;
+  const item = document.createElement('li');
+  item.className = 'legend-zoom';
+
+  const zoomOut = document.createElement('button');
+  zoomOut.type = 'button';
+  zoomOut.textContent = '−';
+  zoomOut.title = 'Zoom out';
+  zoomOut.setAttribute('aria-label', 'Zoom out');
+  zoomOut.disabled = !state.zoom;
+  zoomOut.addEventListener('click', () => zoomBy(1 / 1.6));
+
+  const zoomIn = document.createElement('button');
+  zoomIn.type = 'button';
+  zoomIn.textContent = '+';
+  zoomIn.title = 'Zoom in — or pinch the plot, or Ctrl+scroll it';
+  zoomIn.setAttribute('aria-label', 'Zoom in');
+  zoomIn.addEventListener('click', () => zoomBy(1.6));
+
+  item.append(zoomOut, zoomIn);
+
+  if (state.zoom) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.textContent = 'Reset zoom';
+    reset.addEventListener('click', () => setZoom(null));
+    item.append(reset);
+  }
+
+  dom.legend.append(item);
 }
 
 /**
@@ -394,7 +445,7 @@ function render() {
     state.availableDominatedCount,
     matches ? matches.size : null,
   );
-  const shortened = renderChart({
+  const { shortened, zoomBy } = renderChart({
     container: dom.chart,
     models: shown,
     fronts: state.fronts,
@@ -404,8 +455,11 @@ function render() {
     visibleTiers: visibleTiers(),
     visibleFrontLines: visibleFrontLines(),
     showLabels: dom.showLabels.checked,
+    zoom: state.zoom,
     onHover: renderTooltip,
+    onZoom: setZoom,
   });
+  renderZoomControls(zoomBy);
 
   // Only when the reader can actually see one. A standing footnote about names
   // that are not on screen is noise on every other view.
@@ -813,6 +867,7 @@ function bindControls() {
   dom.xMetric.addEventListener('change', () => {
     state.x = dom.xMetric.value;
     swapIfCollision('x');
+    state.zoom = null; // The window was in the old metric's units.
     const context = defaultParetoContext(
       state.models,
       currentObjectives(),
@@ -828,6 +883,7 @@ function bindControls() {
   dom.yMetric.addEventListener('change', () => {
     state.y = dom.yMetric.value;
     swapIfCollision('y');
+    state.zoom = null; // The window was in the old metric's units.
     const context = defaultParetoContext(
       state.models,
       currentObjectives(),
@@ -866,7 +922,12 @@ function bindControls() {
     all: dom.modelsAll,
     none: dom.modelsNone,
   });
-  dom.logScale.addEventListener('change', render);
+  dom.logScale.addEventListener('change', () => {
+    // The same window reads completely differently on the other scale, and a
+    // linear window can even start below zero, which log cannot show.
+    state.zoom = null;
+    render();
+  });
   dom.showLabels.addEventListener('change', render);
   dom.viewChart.addEventListener('click', () => setView('chart'));
   dom.viewTable.addEventListener('click', () => setView('table'));

@@ -7,6 +7,18 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Added zoom to the chart, aimed at phones where the whole field compacts into a few hundred
+  pixels: pinch the plot to zoom, two-finger-drag to pan — one finger still scrolls the page — and
+  on desktop Ctrl/⌘+scroll (a trackpad pinch arrives as exactly that) plus drag-to-pan once zoomed.
+  The +/− buttons and "Reset zoom" sit at the right end of the legend, outside the plot, and double
+  as the keyboard path. Zooming re-renders through the real scales rather than stretching pixels,
+  so marks keep their size, ticks re-space to the window and labels re-place inside it; a live
+  gesture moves a cheap transform preview and the re-render lands on release. The window is a view,
+  never a filter — fronts, legend and table ignore it, it survives filter and search changes, and it
+  resets when an axis metric or the log toggle changes what the units mean. Zoom is capped at 32×
+  per axis, panning stops at the data's edge, and zooming all the way back out snaps to the exact
+  original fit.
+
 - Added a "Front lines" picker that toggles each Pareto front's line without touching its models —
   leave only gold checked and the silver and bronze curves disappear while every mark stays put.
   It is deliberately weaker than the tier picker, which removes a tier's models from the plot, and
