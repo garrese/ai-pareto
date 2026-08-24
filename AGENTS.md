@@ -139,6 +139,37 @@ meaning with the surface.
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
 
+The tiers are painted worst-front-first — bronze, silver, gold, lines then marks — because SVG
+stacks in document order and painting best-first put silver and bronze over gold wherever the
+tiers crowd (fixed 2026-08-24). Keep any new per-tier layer in that order.
+
+### Zoom
+
+Added 2026-08-24, for phones where the whole field compacts into a few hundred pixels. Pinch to
+zoom and two-finger-drag to pan on touch; Ctrl/⌘+wheel (a trackpad pinch arrives as exactly that)
+and drag-to-pan on desktop; +/− and "Reset zoom" buttons at the right end of the legend — outside
+the plot, because any corner of the plot is data on some pair of axes — which are also the
+keyboard path. Decisions that are load-bearing:
+
+- **The zoom is semantic, not pixel stretching**: the window becomes the scale domain
+  (`makeScale`'s `domain` option, which skips all padding on purpose — re-padding a window would
+  drift it every render) and everything re-renders inside it. During a live gesture only a clipped
+  layer is transformed as a cheap preview — labels hide, strokes stretch — and the real re-render
+  lands on commit: wheel commits 140ms after the last tick, a pinch when the second finger lifts.
+- **The window is a view, never a filter.** Fronts, legend and table ignore it; marks outside are
+  clipped, not removed. It survives filter and search changes, clamped into whatever field remains,
+  and resets when an axis metric or the log toggle changes what the units mean.
+- **One finger must keep scrolling the page** — the chart is most of a phone screen. That is
+  `touch-action: pan-y` plus a two-finger-only `touchmove` preventDefault (iOS scroll-pans with two
+  fingers too) plus a `gesturestart` preventDefault for Safari's proprietary pinch fallback. A
+  plain wheel scrolls the page as well; only Ctrl/⌘+wheel is claimed.
+- Capped at 32× per axis (`MAX_ZOOM` — past that the tick formatters run out of decimals), panned
+  windows clamp to the padded full domain, and a window covering the whole field commits as null,
+  so zooming out fully snaps to the exact original fit.
+- "The best front on show is named" reads the window as part of "on show": a window holding no
+  gold names silver, and so on. A window holding only dominated cloud still names nothing — that
+  is the standing never-name-the-cloud rule; widening it is a decision to take with the user.
+
 On desktop it is `clamp(560px, 72vh, 960px)` tall, raised twice on 2026-08-15 from
 `clamp(420px, 58vh, 820px)`. The plot was letterboxed at nearly 3:1, which is where the vertical
 crowding came from; it is now ~2.5:1 and names 16 of 17 gold models against 15.
@@ -306,6 +337,15 @@ checked means all eligible child models are selected, mixed means some, and unch
 Clearing the last selected model for a creator must therefore uncheck that creator. **Tiers** filter
 only what is drawn, because recomputing would promote silver into gold's place the moment gold is
 hidden.
+
+The **front-lines picker** (2026-08-24) is deliberately weaker than all of those: unchecking a row
+stops that front's line being drawn and touches nothing else — the models stay plotted. A line
+whose tier is hidden is not drawn either, because a line over missing marks points at nothing. The
+tier and line pickers look identical and do different things, so the distinction is carried
+structurally: the controls row groups "Axes", "Filter models" (tiers, creators, models) and
+"Overlays" (front lines, names) under labelled headings, and each picker ends in a one-line
+`picker-hint` saying which of the two things it does. Keep new controls inside the group whose
+promise they match.
 
 The creator and model pickers **each carry their own search box** (2026-08-15): 58 creators and 608
 models are more than anyone scrolls. Rows are built once and hidden as you type — rebuilding 608

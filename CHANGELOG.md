@@ -7,6 +7,9 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Recorded the chart zoom and front-line picker decisions in the agent guide: the zoom is a view
+  and never a filter, one finger must keep scrolling the page, the paint order is worst-front-first,
+  and the labelled control groups carry the tier-versus-line distinction.
 - Made closing a round explicit in the agent guide: no round ends without committing the work,
   merging it into `develop`, and pushing, so finished work is never left uncommitted and silent.
 - Turned the bot's pill into a plain link and put its explanatory line beside it, on one row. The
