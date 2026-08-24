@@ -228,9 +228,12 @@ before, and a 375px phone names 14 where it used to fit almost none.
   informative against the field it sits in, and a reader who was reading the front before typing
   should not lose it. They are served *after* every match, so the matches take the closest, cleanest
   slots and the dimmed names fill in what is left — including nothing at all, on a plot the matches
-  have already filled, because `LABEL_LIMIT` still caps the total. A **compact plot names only the
-  matches**: there, names are off by default and are on because a bot link asked for one, so there
-  is no context to keep, and a dozen names at phone width are the chart rather than an annotation.
+  have already filled, because `LABEL_LIMIT` still caps the total. **The checkbox is the only
+  switch**: a phone that has names on dims them exactly as a desktop does. Screen width already
+  decides whether the checkbox starts on, and letting it decide twice would take names away from a
+  reader who asked for them the moment they typed — a compact carve-out was tried and removed
+  (2026-08-24). The consequence is deliberate: a bot link turns names on whatever the screen, so at
+  phone width it lands on its match named plus about a dozen dimmed ones.
 - A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **off on the
   screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
   annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
@@ -247,8 +250,10 @@ before, and a 375px phone names 14 where it used to fit almost none.
   one thing the chart draws, and reads as if the curve itself were annotated. A leader crossing one
   costs 4, covering a ranked mark 3, covering the dominated cloud 1. **Covering a matched mark costs
   6**, more than any other mark, because it is the answer to the query: a name laid over the thing
-  being searched for hides exactly what the search was for. The search stops at the first zero-cost
-  slot on the nearest ring that has one.
+  being searched for hides exactly what the search was for. For a **dimmed context name that is
+  forbidden outright** — it is optional and the match is not, so it gives up the slot. Priced only,
+  one of three matched marks ended up under a name at phone width. The search stops at the first
+  zero-cost slot on the nearest ring that has one.
   - The prices came from real clutter (2026-08-15): before them, five of the fifteen names on the
     default view lay across a front line. After, 1280px names 15 of 17 gold models with zero label
     overlaps, no ranked mark covered, and two crossings left in the tightest corner.
