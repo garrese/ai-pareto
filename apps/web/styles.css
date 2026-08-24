@@ -105,29 +105,50 @@ body {
 
 .header-links {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin: 14px 0 0;
   font-size: 0.92rem;
 }
 
+/* The bot and its caption share one line, and the wrapper is what keeps them
+   together: loose in the column, the caption sat next to the source link and
+   read as if it explained GitHub. It wraps rather than overflowing, since the
+   two together are wider than a narrow column. */
+.header-bot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+/* A link, drawn as one. It carries the weight and the only primary-text colour
+   up here, which is what marks it as the call to action — a pill made it look
+   like a button that would do something on the page rather than leave it. */
 .header-link {
-  padding: 5px 12px;
   color: var(--text-primary);
-  text-decoration: none;
   font-weight: 600;
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .header-link:hover {
-  border-color: var(--baseline);
+  text-decoration-thickness: 2px;
 }
 
 .header-links-note {
   color: var(--text-secondary);
+}
+
+.header-source {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.header-source:hover {
+  color: var(--text-primary);
 }
 
 .meta {
@@ -165,15 +186,19 @@ body {
   display: none;
 }
 
-/* ── Controls: one row above everything they scope ───────────────────────── */
+/* ── Controls: a labelled rail of rows above everything they scope ───────── */
 
+/* One row per purpose, its name in a left rail: "Filter models" changes which
+   models are plotted, "Overlays" only what is drawn on top. The rail and the
+   inline control labels keep every row to a single tier of text — group
+   captions floating above a second deck of labels read as clutter. */
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 20px;
   margin: 12px 0 16px;
-  padding: 16px;
+  padding: 12px 16px;
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -181,8 +206,8 @@ body {
 
 .control {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
@@ -199,19 +224,23 @@ body {
   border-radius: 7px;
 }
 
+/* The rail is this row's label, so the box takes the width instead. */
+.control-search {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+
 .control-search input {
-  min-width: 208px;
+  width: 100%;
+  min-width: 0;
 }
 
 .control-check {
-  flex-direction: row;
-  align-items: center;
   gap: 8px;
   min-height: 36px;
 }
 
 .control-view {
-  flex-direction: row;
   gap: 4px;
   padding: 3px;
   background: var(--page-plane);
@@ -220,14 +249,31 @@ body {
 }
 
 .control-actions {
-  flex-direction: row;
   gap: 8px;
   margin-left: auto;
+}
+
+.control-group-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.control-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  min-width: 0;
 }
 
 .toggle,
 .filters-toggle,
 #usage,
+#refresh,
+.token-form button,
 .picker-actions button {
   padding: 7px 14px;
   font: inherit;
@@ -246,14 +292,53 @@ body {
 }
 
 .filters-toggle,
-#usage {
+#usage,
+#refresh,
+.token-form button {
   color: var(--text-primary);
   border: 1px solid var(--hairline);
 }
 
-#usage:disabled {
+#usage:disabled,
+#refresh:disabled,
+.token-form button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Local development only: pasting the token the server printed. */
+
+/* `display: flex` below beats the `hidden` attribute's UA rule, so the form
+   would sit open on every page load without this — the same trap as
+   `.picker-row`. */
+.token-form[hidden] {
+  display: none;
+}
+
+.token-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.token-form input {
+  flex: 1;
+  min-width: 180px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--page-plane);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
 }
 
 /* ── Tier, creator and model pickers ─────────────────────────────────────── */
@@ -316,6 +401,15 @@ body {
   margin: 0;
   padding: 4px 14px 14px;
   font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* One line under the list saying what checking a row actually does — the tier
+   and front-line pickers look identical and do two different things. */
+.picker-hint {
+  margin: 0;
+  padding: 2px 14px 10px;
+  font-size: 0.76rem;
   color: var(--text-muted);
 }
 
@@ -385,6 +479,14 @@ body {
   flex: none;
 }
 
+/* A bar where the tier rows carry a dot: the row toggles a line, not models. */
+.picker-row .swatch-line {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 
 .card {
@@ -436,6 +538,35 @@ body {
   text-decoration-color: var(--text-muted);
 }
 
+/* The zoom buttons close the legend row: outside the plot, because any corner
+   of the plot is data on some pair of axes. */
+.legend-zoom {
+  margin-left: auto;
+  gap: 4px;
+}
+
+.legend-zoom button {
+  min-width: 28px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.legend-zoom button:hover {
+  border-color: var(--baseline);
+}
+
+.legend-zoom button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .legend-match::before {
   content: '';
   width: 12px;
@@ -479,12 +610,39 @@ body {
 
 .chart svg {
   display: block;
+  /* One finger still scrolls the page; pinches are the chart's. `pan-y` also
+     bars the browser from pinch-zooming the page from on top of the plot. */
+  touch-action: pan-y;
+}
+
+/* Zoomed, dragging the plot pans the window. */
+.chart svg.is-zoomed .hover-surface {
+  cursor: grab;
+}
+
+.chart svg.is-panning .hover-surface {
+  cursor: grabbing;
+}
+
+/* A live gesture only transforms the layer as a preview: names would stretch
+   with it, so they sit the moment out. The re-render brings them back. */
+.chart svg.is-zooming .mark-label {
+  display: none;
 }
 
 .chart-empty {
   margin: 48px 0;
   text-align: center;
   color: var(--text-muted);
+}
+
+/* Only rendered when a shortened name is actually on the plot, so it stays a
+   footnote about what the reader can see rather than a standing disclaimer. */
+.chart-note {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 /* ── Chart internals ─────────────────────────────────────────────────────── */
@@ -593,6 +751,15 @@ body {
   stroke-linecap: round;
 }
 
+/* Names that were already on the plot when the search started stay on it and
+   recede, like the marks and the front lines they annotate: the match reads
+   against a labelled field instead of an empty one. Kept a little above the
+   tiers' 0.38 because text has far less ink than a dot to be read by, and its
+   halo fades with it. */
+.mark-label .is-dimmed {
+  opacity: 0.45;
+}
+
 .hover-ring {
   fill: none;
   stroke: var(--text-primary);
@@ -606,6 +773,7 @@ body {
   position: fixed;
   z-index: 30;
   min-width: 200px;
+  max-width: min(280px, calc(100vw - 24px));
   padding: 10px 12px;
   pointer-events: none;
   background: var(--surface-1);
@@ -615,9 +783,12 @@ body {
   font-size: 0.82rem;
 }
 
+/* The plot may only have room for `Claude Opus 5 (e)`; this is where the whole
+   configuration is spelled out, so it wraps rather than stretching the card. */
 .tooltip .tip-name {
   font-weight: 600;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .tooltip .tip-creator {
@@ -768,16 +939,12 @@ body {
     margin-top: 6px;
   }
 
-  /* The links keep their weight but give up the explanatory line: on a phone
-     every row above the plot is a row the plot does not get. */
+  /* The links keep their weight and their explanatory line: it is what tells a
+     first-time reader what the bot is, and it wraps to its own row here. */
   .header-links {
-    gap: 6px;
+    gap: 8px;
     margin-top: 10px;
     font-size: 0.85rem;
-  }
-
-  .header-links-note {
-    display: none;
   }
 
   .toolbar {
@@ -799,12 +966,14 @@ body {
   }
 
   /* Folded away by default: a phone should open on the data, not on the
-     filters. `is-open` is set by the toggle above. */
+     filters. `is-open` is set by the toggle above. The rail cannot afford a
+     column of its own here, so its labels become section lines and each row
+     goes back to the two-column rhythm with labels above the widgets. */
   .controls {
     display: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: end;
-    gap: 10px 8px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
     margin: 8px 0 10px;
     padding: 10px;
     border-radius: 8px;
@@ -814,9 +983,27 @@ body {
     display: grid;
   }
 
-  .control {
+  .controls .control {
+    flex-direction: column;
+    align-items: stretch;
     min-width: 0;
     gap: 4px;
+  }
+
+  .controls .control-check {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .control-group-label {
+    margin-top: 4px;
+  }
+
+  .control-group-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 10px 8px;
   }
 
   .control select,
@@ -829,6 +1016,7 @@ body {
   .control-search,
   .control-actions {
     grid-column: 1 / -1;
+    max-width: none;
   }
 
   .control-view,
@@ -841,7 +1029,8 @@ body {
     flex: 1;
   }
 
-  .control-actions {
+  .controls .control-actions {
+    flex-direction: row;
     margin-left: 0;
   }
 
@@ -988,11 +1177,12 @@ body {
     display: block;
   }
 
-  /* Vertical space is the scarce one here, so the filters fold away as well. */
+  /* Vertical space is the scarce one here, so the filters fold away as well,
+     and the rail's labels become section lines over four-column rows. */
   .controls {
     display: none;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
     gap: 6px;
     margin: 8px 0;
     padding: 8px;
@@ -1002,11 +1192,28 @@ body {
     display: grid;
   }
 
-  .control,
-  .control-search,
-  .control-actions {
+  .controls .control {
+    flex-direction: column;
+    align-items: stretch;
     min-width: 0;
-    grid-column: auto;
+    gap: 4px;
+  }
+
+  .controls .control-check {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .control-group-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+    gap: 6px;
+  }
+
+  .control-search {
+    grid-column: span 2;
+    max-width: none;
   }
 
   .control select,
@@ -1028,7 +1235,9 @@ body {
     padding-inline: 5px;
   }
 
-  .control-actions {
+  .controls .control-actions {
+    flex-direction: row;
+    grid-column: span 2;
     margin-left: 0;
   }
 

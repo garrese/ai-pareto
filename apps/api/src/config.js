@@ -14,6 +14,7 @@ const DEFAULTS = {
   'aa.api.daily.limit': '100',
   'server.port': '8787',
   'cache.ttl.minutes': '360',
+  'refresh.manual.enabled': 'false',
 };
 
 /**
@@ -55,6 +56,16 @@ function toPositiveNumber(value, key) {
   return n;
 }
 
+/**
+ * Strict on purpose: a capability that spends the daily quota must not end up
+ * enabled by a typo, and `Boolean('false')` is `true`.
+ */
+function toBoolean(value, key) {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`Invalid value for ${key} in config.properties: "${value}" (use true or false)`);
+}
+
 export function loadConfig(environment = process.env) {
   // `PORT` wins over the file: it is how every host and dev harness hands a
   // port over, and a second instance has to be able to take a different one.
@@ -75,6 +86,7 @@ export function loadConfig(environment = process.env) {
     dailyLimit: toPositiveNumber(props['aa.api.daily.limit'], 'aa.api.daily.limit'),
     port: toPositiveNumber(props['server.port'], 'server.port'),
     cacheTtlMs: toPositiveNumber(props['cache.ttl.minutes'], 'cache.ttl.minutes') * 60_000,
+    manualRefreshEnabled: toBoolean(props['refresh.manual.enabled'], 'refresh.manual.enabled'),
     cacheDir: resolve(apiRoot, '.cache'),
     webRoot: resolve(repoRoot, 'apps', 'web'),
   };

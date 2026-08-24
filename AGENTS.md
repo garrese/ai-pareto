@@ -49,6 +49,22 @@ make a static-only build possible again.
 - **Paginated**, 200 per page — 608 models is 4 requests. Free tier is 100 requests per 24h fixed
   window, so responses are cached to `apps/api/.cache/models.json`. Never add a code path that
   refetches per render.
+- **The local server never fetches by itself** (2026-08-24). `GET /api/models` reads the cache
+  whatever its age; an expired `cache.ttl.minutes` only labels the data `stale`. The single route
+  that spends quota is `POST /api/refresh`, and it is deliberately hard to reach: off unless
+  `refresh.manual.enabled=true`, loopback only, POST only, `Sec-Fetch-Site: same-origin` only, and
+  it needs a per-run token that is printed to the server console and **never served over HTTP**.
+  That last part is the point — hiding a button in the page would not stop anyone who opens the
+  developer tools. Do not add a query parameter, a GET route, or a page-readable token that would
+  give the capability back, and do not make the page refresh on load, on a timer, or on a filter
+  change. The cloud collector already spends 24 of the 100 daily requests, and the two share a key.
+- **Neither path starts a refresh the window cannot finish** (2026-08-24). `src/quota.js` weighs the
+  last observed `X-RateLimit-Remaining` against the page count the previous walk actually needed;
+  the collector defers the pass and hands its lease back, the local route answers `429`. Pass the
+  real page count, never a constant — four requests today, five past 800 models. The guard is
+  deliberately permissive when it has nothing to go on (no reading, no headers, window already
+  reset): its job is to stop a doomed refresh, not to demand proof of safety. A `resume` or `drain`
+  pass is never gated, because neither touches upstream.
 - This endpoint **does** return `X-RateLimit-Limit/Remaining/Reset`. `/api/usage` serves the last
   snapshot from `.cache/usage.json` rather than spending a request to ask.
 - Docs: <https://artificialanalysis.ai/data-api/docs>
@@ -123,6 +139,42 @@ meaning with the surface.
 The chart sizes its viewBox to the container in CSS pixels and redraws from a `ResizeObserver`, so
 labels stay at true pixel sizes. Do not reintroduce a fixed viewBox.
 
+The tiers are painted worst-front-first — bronze, silver, gold, lines then marks — because SVG
+stacks in document order and painting best-first put silver and bronze over gold wherever the
+tiers crowd (fixed 2026-08-24). Keep any new per-tier layer in that order.
+
+### Zoom
+
+Added 2026-08-24, for phones where the whole field compacts into a few hundred pixels. Pinch to
+zoom and two-finger-drag to pan on touch; Ctrl/⌘+wheel (a trackpad pinch arrives as exactly that)
+and drag-to-pan on desktop; +/− and "Reset zoom" buttons at the right end of the legend — outside
+the plot, because any corner of the plot is data on some pair of axes — which are also the
+keyboard path. Decisions that are load-bearing:
+
+- **The zoom is semantic, not pixel stretching**: the window becomes the scale domain
+  (`makeScale`'s `domain` option, which skips all padding on purpose — re-padding a window would
+  drift it every render) and everything re-renders inside it. During a live gesture only a clipped
+  layer is transformed as a cheap preview — labels hide, strokes stretch — and the real re-render
+  lands on commit: wheel commits 140ms after the last tick, a pinch when the second finger lifts.
+- **The window is a view, never a filter.** Fronts, legend and table ignore it; marks outside are
+  clipped, not removed. It survives filter and search changes, clamped into whatever field remains,
+  and resets when an axis metric or the log toggle changes what the units mean.
+- **One finger must keep scrolling the page** — the chart is most of a phone screen. That is
+  `touch-action: pan-y` plus a two-finger-only `touchmove` preventDefault (iOS scroll-pans with two
+  fingers too) plus a `gesturestart` preventDefault for Safari's proprietary pinch fallback. A
+  plain wheel scrolls the page as well; only Ctrl/⌘+wheel is claimed.
+- Capped at 32× per axis (`MAX_ZOOM` — past that the tick formatters run out of decimals), panned
+  windows clamp to the padded full domain, and a window covering the whole field commits as null,
+  so zooming out fully snaps to the exact original fit.
+- Names spend the room the window buys (2026-08-24, second pass). Unzoomed, the old rule stands:
+  only the best front wearing its line is named. Zoomed, every front on show is named, best first —
+  and once the window is sparse enough that everything visible fits under `LABEL_LIMIT`, the
+  dominated cloud is named too. That last part is a user-approved exception to the
+  never-name-the-cloud rule: "there are hundreds of it" stops being true inside a deep window. "On
+  show" reads the window and the front-lines picker both, so a window with no gold names silver
+  and a demoted tier queues with the cloud. The placer still prices every slot, so a crowded
+  window degrades to fewer names rather than a carpet.
+
 On desktop it is `clamp(560px, 72vh, 960px)` tall, raised twice on 2026-08-15 from
 `clamp(420px, 58vh, 820px)`. The plot was letterboxed at nearly 3:1, which is where the vertical
 crowding came from; it is now ~2.5:1 and names 16 of 17 gold models against 15.
@@ -178,11 +230,46 @@ Consequences that are load-bearing:
 
 Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
 
-- **Idle, the best front on show is named** — gold normally, silver if gold is filtered out, and so
-  on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
-  the labels instead**, whatever tier they are in, so the answer to the query is the only thing
-  spelled out — but past **10 matches only the ranked ones are named**, because a broad query
-  matches most of the cloud and burying the fronts in it defeats the point.
+**A label is the short name, not the real one.** Upstream names carry their configuration in a
+parenthesis and some are unusable on a plot — "Claude Fable 5 (Adaptive Reasoning, Max Effort, Opus
+4.8 Fallback)" is 66 characters, roughly a third of the plot's width. `names.js` adds a `shortName`
+to every model: models are grouped by everything before their first parenthesis, a family with one
+member simply loses its parenthesis, and a family with several has every member's parenthesis
+replaced by a letter — `Claude Opus 5 (a)` … `(e)` — assigned by **ascending intelligence**, with
+unmeasured models taking the last letters rather than the first. `name` itself is never replaced:
+the card, the table and the pickers all keep showing the real thing, and the search box matches
+both, because a reader types back what the plot spelled out.
+
+Letters rather than salvaged words was decided with the user on 2026-08-24, after both were
+measured. Families mix short suffixes with long ones — `GPT-5.6 Terra` has `(low)` next to
+`(Non-reasoning)` — so keeping the short ones would make the shorthand mean two different things
+inside one family. Consecutive letters read as "several reasoning levels" and that is enough.
+
+Two consequences hold this together and should not be dropped. The letters are computed over the
+**whole dataset, once per load**, not over what is drawn (0.5ms for 616 models): a letter that moved
+when you filtered would be worse than no letter. And the chart **counts the shortened labels it
+actually placed** and returns that number, so the footnote under the plot appears only when the
+reader can see one — a standing disclaimer on every other view is noise.
+
+Shorter labels bought coverage outright: 1280px now names **17 of 17** gold models, against 15
+before, and a 375px phone names 14 where it used to fit almost none.
+
+- **The best front on show is named** — gold normally, silver if gold is filtered out, and so on.
+  The dominated cloud is never named; there are hundreds of it. **Searching, the matches are named
+  first**, whatever tier they are in, so the answer to the query is spelled out before anything
+  else — but past **10 matches only the ranked ones are named**, because a broad query matches most
+  of the cloud and burying the fronts in it defeats the point.
+- **The names already on the plot stay on it while searching, dimmed** (2026-08-24) instead of being
+  replaced by the matches. They recede exactly as the marks and the front lines do: a match is only
+  informative against the field it sits in, and a reader who was reading the front before typing
+  should not lose it. They are served *after* every match, so the matches take the closest, cleanest
+  slots and the dimmed names fill in what is left — including nothing at all, on a plot the matches
+  have already filled, because `LABEL_LIMIT` still caps the total. **The checkbox is the only
+  switch**: a phone that has names on dims them exactly as a desktop does. Screen width already
+  decides whether the checkbox starts on, and letting it decide twice would take names away from a
+  reader who asked for them the moment they typed — a compact carve-out was tried and removed
+  (2026-08-24). The consequence is deliberate: a bot link turns names on whatever the screen, so at
+  phone width it lands on its match named plus about a dozen dimmed ones.
 - A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **off on the
   screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
   annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
@@ -197,7 +284,11 @@ Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
 - **Everything else is priced, not forbidden**, so a crowded chart degrades instead of emptying out.
   Crossing a front line costs 10 and is the expensive one — a name laid across a frontier hides the
   one thing the chart draws, and reads as if the curve itself were annotated. A leader crossing one
-  costs 4, covering a ranked mark 3, covering the dominated cloud 1. The search stops at the first
+  costs 4, covering a ranked mark 3, covering the dominated cloud 1. **Covering a matched mark costs
+  6**, more than any other mark, because it is the answer to the query: a name laid over the thing
+  being searched for hides exactly what the search was for. For a **dimmed context name that is
+  forbidden outright** — it is optional and the match is not, so it gives up the slot. Priced only,
+  one of three matched marks ended up under a name at phone width. The search stops at the first
   zero-cost slot on the nearest ring that has one.
   - The prices came from real clutter (2026-08-15): before them, five of the fifteen names on the
     default view lay across a front line. After, 1280px names 15 of 17 gold models with zero label
@@ -215,7 +306,9 @@ would only punish the typing. `is-searching` is set from `matches.size > 0`, not
 
 Matches recede the rest of the plot rather than erasing it: 0.12 opacity was tried and the fronts
 disappeared. The dominated cloud (0.22) and the tiers (0.38) dim by different amounts so the
-ranking still reads through the dimming.
+ranking still reads through the dimming. **Names carried over from the idle view dim to 0.45** — a
+little above the tiers, because text has far less ink than a dot to be read by and its halo fades
+with it.
 
 ## Small screens
 
@@ -228,6 +321,11 @@ else gives them up.
 - The **filters fold away** behind a "Show filters" button below 720px and on short landscape
   screens, so a phone opens on data. The **chart/table switch stays outside the fold** — it is the
   one control that must always be one tap away.
+- The **card names the full model and its release date**. Latency is the one metric it leaves out —
+  it is the least asked-for of the five and the release date earns the row more — but it returns
+  whenever it is on an axis, because a card that omitted the coordinate under the pointer would be
+  answering a question nobody asked. The card is also the only place the untruncated name exists, so
+  it is width-capped and wraps.
 - **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
   Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
   title, because a spelled-out heading widens a column past anything its values ever hold.
@@ -244,6 +342,22 @@ checked means all eligible child models are selected, mixed means some, and unch
 Clearing the last selected model for a creator must therefore uncheck that creator. **Tiers** filter
 only what is drawn, because recomputing would promote silver into gold's place the moment gold is
 hidden.
+
+The **front-lines picker** (2026-08-24) is deliberately weaker than all of those: unchecking a row
+demotes that front to context — no line, and its marks take the dominated cloud's grey (asked for
+after medal-coloured marks with no front to explain them read as a bug) — but the models never
+leave the plot; removing models is the tier picker's job. The demotion is presentation-deep:
+`ranked` in `chart.js` follows it, so labels price a demoted mark as cloud and broad searches do
+not single it out, and the legend swatch turns grey so the legend keeps decoding what is actually
+drawn. A hidden tier has no line either, because a line over missing marks points at nothing.
+
+The tier and line pickers look identical and do different things, so the distinction is carried
+structurally: the filter panel is a labelled rail of single-line rows — "Axes", "Filter models"
+(tiers, creators, models), "Overlays" (front lines, names), "Highlight" (search, utility buttons) —
+with control labels beside their widgets, one tier of text per row; the first pass stacked group
+captions over a second deck of labels and read as clutter (relaid 2026-08-24). Each picker still
+ends in a one-line `picker-hint` saying which of the two things it does. Keep new controls inside
+the row whose promise they match.
 
 The creator and model pickers **each carry their own search box** (2026-08-15): 58 creators and 608
 models are more than anyone scrolls. Rows are built once and hidden as you type — rebuilding 608
@@ -270,6 +384,13 @@ What "finished and verified" means in practice:
 - The change does what it was asked to do and you have actually checked that (ran it, read the
   output, exercised the changed path) — not just "the code looks right".
 - It is not mid-edit, half-applied, or blocked on an open question back to the user.
+
+**No round ends without commit, merge and push.** A round is one finished evolution — the piece of
+work the user just asked for. Closing it means, in this order and without asking: commit the change
+on its work branch, merge that branch into `develop`, and push `develop` to `origin`. Do not report
+a round as done, and do not pick up the next one, while any of the three is still pending. If
+something genuinely blocks the sequence — a merge conflict, a failing check, an open question — say
+so explicitly instead of leaving the work uncommitted and silent.
 
 Guidelines that still apply:
 

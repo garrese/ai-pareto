@@ -1,5 +1,12 @@
-import { dataSourceMode, fetchModels, fetchUsage } from './api.js';
+import {
+  dataSourceMode,
+  fetchModels,
+  fetchUsage,
+  requestRefresh,
+  serverAllowsRefresh,
+} from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
+import { withShortNames } from './names.js';
 import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
 import { creatorSelectionStates, defaultParetoContext } from './selection.js';
@@ -15,6 +22,11 @@ const dom = {
   tierList: document.getElementById('tier-list'),
   tiersAll: document.getElementById('tiers-all'),
   tiersNone: document.getElementById('tiers-none'),
+  linePicker: document.getElementById('line-picker'),
+  lineSummary: document.getElementById('line-summary'),
+  lineList: document.getElementById('line-list'),
+  linesAll: document.getElementById('lines-all'),
+  linesNone: document.getElementById('lines-none'),
   creatorPicker: document.getElementById('creator-picker'),
   creatorSummary: document.getElementById('creator-summary'),
   creatorList: document.getElementById('creator-list'),
@@ -34,11 +46,16 @@ const dom = {
   viewChart: document.getElementById('view-chart'),
   viewTable: document.getElementById('view-table'),
   usage: document.getElementById('usage'),
+  refresh: document.getElementById('refresh'),
+  tokenForm: document.getElementById('token-form'),
+  tokenInput: document.getElementById('refresh-token'),
+  tokenCancel: document.getElementById('token-cancel'),
   controls: document.getElementById('controls'),
   filtersToggle: document.getElementById('filters-toggle'),
   chartCard: document.getElementById('chart-card'),
   tableCard: document.getElementById('table-card'),
   chart: document.getElementById('chart'),
+  chartNote: document.getElementById('chart-note'),
   legend: document.getElementById('legend'),
   tooltip: document.getElementById('tooltip'),
   tableBody: document.getElementById('table-body'),
@@ -68,6 +85,15 @@ const state = {
   selectionEdited: false,
   /** Visible tiers. Holds 0–2 for the fronts and 'rest' for the runners-up. */
   tiers: new Set(),
+  /** Front lines being drawn, 0–2. Unlike `tiers` this never hides a model. */
+  frontLines: new Set(),
+  /**
+   * The chart's zoom window, `{x: [lo, hi], y: [lo, hi]}` in metric values, or
+   * null for the whole field. A view, never a filter: fronts, legend and table
+   * ignore it. It survives filter and search changes but not a change of what
+   * the axes mean — metric and log toggles reset it.
+   */
+  zoom: null,
   query: '',
   view: 'chart',
 };
@@ -84,6 +110,14 @@ const tierColor = (index) =>
 const dot = (color) => {
   const swatch = document.createElement('span');
   swatch.className = 'swatch';
+  swatch.style.background = color;
+  return swatch;
+};
+
+/** A short bar, not a dot: the row toggles the line, never the models. */
+const lineSwatch = (color) => {
+  const swatch = document.createElement('span');
+  swatch.className = 'swatch-line';
   swatch.style.background = color;
   return swatch;
 };
@@ -119,8 +153,18 @@ const tierShown = (tier) => {
   return !visible || visible.has(tier);
 };
 
+/** Null when every line is drawn, mirroring `visibleTiers`. */
+function visibleFrontLines() {
+  return state.frontLines.size === TIERS.length ? null : state.frontLines;
+}
+
+const frontLineShown = (index) => state.frontLines.has(index);
+
+// The shortened label counts too: what the plot spells out is what a reader
+// types back into the box, and it is not always the real name.
 const hits = (model, query) =>
   model.name.toLowerCase().includes(query) ||
+  (model.shortName ?? '').toLowerCase().includes(query) ||
   (model.creator ?? '').toLowerCase().includes(query);
 
 /** Ids whose name or creator contains the query, or null when the box is empty. */
@@ -143,7 +187,12 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
     const count = document.createElement('span');
     count.className = 'count';
     count.textContent = `${fronts[index]?.length ?? 0}`;
-    item.append(dot(tierColor(index)), label, count);
+    // The legend decodes the colours on the plot, so a tier demoted by the
+    // front-lines picker shows the grey its marks actually wear — a medal
+    // swatch next to grey points would be the legend lying.
+    const demoted = tierShown(index) && !frontLineShown(index);
+    if (demoted) item.title = 'Front line off — drawn with the dominated cloud';
+    item.append(dot(demoted ? 'var(--rest-mark)' : tierColor(index)), label, count);
     dom.legend.append(item);
   });
 
@@ -177,6 +226,77 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
   }
 }
 
+/** A gesture ended on a new window (or none); redraw the chart inside it. */
+function setZoom(zoom) {
+  state.zoom = zoom;
+  render();
+}
+
+/**
+ * Lives in the legend row, outside the plot: any corner of the plot is data on
+ * some pair of axes. The buttons are the discoverable path — and the keyboard
+ * one — next to gestures that leave no trace in the UI.
+ */
+function renderZoomControls(zoomBy) {
+  if (!zoomBy) return;
+  const item = document.createElement('li');
+  item.className = 'legend-zoom';
+
+  const zoomOut = document.createElement('button');
+  zoomOut.type = 'button';
+  zoomOut.textContent = '−';
+  zoomOut.title = 'Zoom out';
+  zoomOut.setAttribute('aria-label', 'Zoom out');
+  zoomOut.disabled = !state.zoom;
+  zoomOut.addEventListener('click', () => zoomBy(1 / 1.6));
+
+  const zoomIn = document.createElement('button');
+  zoomIn.type = 'button';
+  zoomIn.textContent = '+';
+  zoomIn.title = 'Zoom in — or pinch the plot, or Ctrl+scroll it';
+  zoomIn.setAttribute('aria-label', 'Zoom in');
+  zoomIn.addEventListener('click', () => zoomBy(1.6));
+
+  item.append(zoomOut, zoomIn);
+
+  if (state.zoom) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.textContent = 'Reset zoom';
+    reset.addEventListener('click', () => setZoom(null));
+    item.append(reset);
+  }
+
+  dom.legend.append(item);
+}
+
+/**
+ * `2026-05-19` is a plain calendar date, not an instant, so it is formatted in
+ * UTC: parsed as local time it lands a day early for anyone west of Greenwich.
+ */
+const RELEASE_DATE = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+function formatReleaseDate(value) {
+  const parsed = Date.parse(value ?? '');
+  return Number.isFinite(parsed) ? RELEASE_DATE.format(parsed) : '—';
+}
+
+/**
+ * Latency is the one metric the card leaves out. It is the least asked-for of
+ * the five and the release date earns the row more, but it comes back the
+ * moment it is plotted: a card that omitted the coordinate the pointer is
+ * sitting on would be answering a question nobody asked.
+ */
+const cardMetrics = () =>
+  Object.values(METRICS).filter(
+    (metric) => metric.key !== 'ttft' || state.x === 'ttft' || state.y === 'ttft',
+  );
+
 function renderTooltip(model, tierIndex, event) {
   if (!model || !event) {
     dom.tooltip.hidden = true;
@@ -205,7 +325,7 @@ function renderTooltip(model, tierIndex, event) {
   }
 
   const list = document.createElement('dl');
-  for (const metric of Object.values(METRICS)) {
+  for (const metric of cardMetrics()) {
     const value = model[metric.key];
     const dt = document.createElement('dt');
     dt.textContent = metric.label;
@@ -213,6 +333,13 @@ function renderTooltip(model, tierIndex, event) {
     dd.textContent = Number.isFinite(value) ? metric.format(value) : '—';
     list.append(dt, dd);
   }
+
+  const released = document.createElement('dt');
+  released.textContent = 'Released';
+  const releasedValue = document.createElement('dd');
+  releasedValue.textContent = formatReleaseDate(model.releaseDate);
+  list.append(released, releasedValue);
+
   dom.tooltip.append(list);
 
   dom.tooltip.hidden = false;
@@ -325,7 +452,7 @@ function render() {
     state.availableDominatedCount,
     matches ? matches.size : null,
   );
-  renderChart({
+  const { shortened, zoomBy } = renderChart({
     container: dom.chart,
     models: shown,
     fronts: state.fronts,
@@ -333,9 +460,22 @@ function render() {
     yMetric: metricFor(state.y),
     matches,
     visibleTiers: visibleTiers(),
+    visibleFrontLines: visibleFrontLines(),
     showLabels: dom.showLabels.checked,
+    zoom: state.zoom,
     onHover: renderTooltip,
+    onZoom: setZoom,
   });
+  renderZoomControls(zoomBy);
+
+  // Only when the reader can actually see one. A standing footnote about names
+  // that are not on screen is noise on every other view.
+  dom.chartNote.hidden = shortened === 0;
+  dom.chartNote.textContent =
+    shortened === 1
+      ? 'One name on the plot is shortened — click its point for the full one.'
+      : `${shortened} names on the plot are shortened — click a point for the full one.`;
+
   renderTable(state.fronts, rest, matches);
 }
 
@@ -417,6 +557,61 @@ function setAllTiers(selected) {
     if (selected) state.tiers.add(box.value === 'rest' ? 'rest' : Number(box.value));
   }
   updateTierSummary();
+  render();
+}
+
+// ── front-line picker ────────────────────────────────────────────────────────
+// The same shape as the tier picker, doing a strictly weaker thing: unchecking
+// a row stops that front's line being drawn, but its models stay on the plot.
+
+function updateLineSummary() {
+  const chosen = state.frontLines.size;
+  dom.lineSummary.textContent =
+    chosen === TIERS.length
+      ? 'All lines'
+      : chosen === 0
+        ? 'No lines'
+        : chosen === 1
+          ? `${TIERS.find((_, index) => state.frontLines.has(index))?.name} only`
+          : `${chosen} of ${TIERS.length} lines`;
+}
+
+function fillLineList() {
+  dom.lineList.replaceChildren();
+
+  TIERS.forEach((tier, index) => {
+    const row = document.createElement('label');
+    row.className = 'picker-row';
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = String(index);
+    box.checked = true;
+    state.frontLines.add(index);
+    box.addEventListener('change', () => {
+      if (box.checked) state.frontLines.add(index);
+      else state.frontLines.delete(index);
+      updateLineSummary();
+      render();
+    });
+
+    const text = document.createElement('span');
+    text.textContent = tier.name;
+
+    row.append(box, lineSwatch(tierColor(index)), text);
+    dom.lineList.append(row);
+  });
+
+  updateLineSummary();
+}
+
+function setAllLines(selected) {
+  state.frontLines.clear();
+  for (const box of dom.lineList.querySelectorAll('input')) {
+    box.checked = selected;
+    if (selected) state.frontLines.add(Number(box.value));
+  }
+  updateLineSummary();
   render();
 }
 
@@ -679,6 +874,7 @@ function bindControls() {
   dom.xMetric.addEventListener('change', () => {
     state.x = dom.xMetric.value;
     swapIfCollision('x');
+    state.zoom = null; // The window was in the old metric's units.
     const context = defaultParetoContext(
       state.models,
       currentObjectives(),
@@ -694,6 +890,7 @@ function bindControls() {
   dom.yMetric.addEventListener('change', () => {
     state.y = dom.yMetric.value;
     swapIfCollision('y');
+    state.zoom = null; // The window was in the old metric's units.
     const context = defaultParetoContext(
       state.models,
       currentObjectives(),
@@ -712,6 +909,8 @@ function bindControls() {
   });
   dom.tiersAll.addEventListener('click', () => setAllTiers(true));
   dom.tiersNone.addEventListener('click', () => setAllTiers(false));
+  dom.linesAll.addEventListener('click', () => setAllLines(true));
+  dom.linesNone.addEventListener('click', () => setAllLines(false));
   dom.creatorsAll.addEventListener('click', () => setAllCreators(true));
   dom.creatorsNone.addEventListener('click', () => setAllCreators(false));
   dom.modelsAll.addEventListener('click', () => setAllModels(true));
@@ -730,7 +929,12 @@ function bindControls() {
     all: dom.modelsAll,
     none: dom.modelsNone,
   });
-  dom.logScale.addEventListener('change', render);
+  dom.logScale.addEventListener('change', () => {
+    // The same window reads completely differently on the other scale, and a
+    // linear window can even start below zero, which log cannot show.
+    state.zoom = null;
+    render();
+  });
   dom.showLabels.addEventListener('change', render);
   dom.viewChart.addEventListener('click', () => setView('chart'));
   dom.viewTable.addEventListener('click', () => setView('table'));
@@ -738,10 +942,20 @@ function bindControls() {
     setFiltersOpen(!dom.controls.classList.contains('is-open')),
   );
   dom.usage.addEventListener('click', showUsage);
+  dom.refresh.addEventListener('click', startRefresh);
+  dom.tokenForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const token = dom.tokenInput.value.trim();
+    if (token) refreshData(token);
+  });
+  dom.tokenCancel.addEventListener('click', () => {
+    dom.tokenForm.hidden = true;
+    dom.quota.hidden = true;
+  });
 
   // Close a dropdown when clicking outside it.
   document.addEventListener('click', (event) => {
-    for (const picker of [dom.tierPicker, dom.creatorPicker, dom.modelPicker]) {
+    for (const picker of [dom.tierPicker, dom.linePicker, dom.creatorPicker, dom.modelPicker]) {
       if (picker.open && !picker.contains(event.target)) picker.open = false;
     }
   });
@@ -816,39 +1030,153 @@ async function showUsage() {
   }
 }
 
+function applyPayload(payload) {
+  // Once per load, never per render: the chart redraws on every filter and
+  // every resize, and the letters are computed over the whole dataset anyway so
+  // that filtering cannot move them.
+  const models = withShortNames(payload.models);
+
+  state.models = models;
+  state.modelById = new Map(models.map((model) => [model.id, model]));
+  dom.meta.classList.remove('is-error');
+  dom.meta.textContent = describe(payload);
+
+  const context = defaultParetoContext(models, currentObjectives(), TIERS.length, RUNNER_LIMIT);
+  state.modelIds = context.modelIds;
+  state.availableDominatedCount = context.dominatedCount;
+  state.selectionEdited = false;
+
+  // Rebuilt rather than kept: a refresh can bring models that were not in the
+  // list, and a picker that cannot offer them would hide the new arrivals the
+  // refresh was for. Both fills replace their rows, so this stays idempotent.
+  fillCreatorList(models);
+  fillModelList(models);
+  // The rows come back visible, so any query typed into a picker has to be
+  // applied again — its own handler is the one place that knows how.
+  dom.creatorFilter.dispatchEvent(new Event('input'));
+  dom.modelFilter.dispatchEvent(new Event('input'));
+  syncModelChecks();
+  syncCreatorChecks();
+  render();
+}
+
 /** The collector refreshes upstream on its own schedule; the page just reads it. */
 async function load() {
   // Hold the previous render at reduced opacity rather than flashing a skeleton.
   dom.chartCard.classList.add('is-loading');
 
   try {
-    const payload = await fetchModels();
-    state.models = payload.models;
-    state.modelById = new Map(payload.models.map((model) => [model.id, model]));
-    dom.meta.classList.remove('is-error');
-    dom.meta.textContent = describe(payload);
-
-    const context = defaultParetoContext(
-      payload.models,
-      currentObjectives(),
-      TIERS.length,
-      RUNNER_LIMIT,
-    );
-    state.modelIds = context.modelIds;
-    state.availableDominatedCount = context.dominatedCount;
-    state.selectionEdited = false;
-
-    if (!dom.creatorList.children.length) fillCreatorList(payload.models);
-    if (!dom.modelList.children.length) fillModelList(payload.models);
-    syncModelChecks();
-    syncCreatorChecks();
-    render();
+    applyPayload(await fetchModels());
   } catch (err) {
     dom.meta.classList.add('is-error');
     dom.meta.textContent = err.message;
   } finally {
     dom.chartCard.classList.remove('is-loading');
   }
+}
+
+// ── manual refresh (local development only) ──────────────────────────────────
+
+/**
+ * Per tab, and never in `localStorage`: the token is only good for the run of
+ * the server that printed it, so outliving the tab would only ever mean
+ * offering a stale one.
+ */
+const TOKEN_KEY = 'aa-refresh-token';
+
+const storedToken = () => {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // Private modes can refuse storage; asking again is the fallback.
+  }
+};
+
+function rememberToken(token) {
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // Not fatal: the token is held for this refresh either way.
+  }
+}
+
+function forgetToken() {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing to undo.
+  }
+}
+
+function say(message, isError = false) {
+  dom.quota.hidden = false;
+  dom.quota.classList.toggle('is-error', isError);
+  dom.quota.textContent = message;
+}
+
+function askForToken(message) {
+  dom.tokenForm.hidden = false;
+  dom.tokenInput.value = '';
+  say(message);
+  dom.tokenInput.focus();
+}
+
+/**
+ * The only path in the page that spends upstream quota. One click is four of
+ * the hundred requests in the daily window, so nothing here retries on its
+ * own: a failure reports and stops.
+ */
+async function refreshData(token) {
+  dom.refresh.disabled = true;
+  dom.chartCard.classList.add('is-loading');
+  say('Refreshing from upstream — this spends four requests of the daily quota.');
+
+  try {
+    const payload = await requestRefresh(token);
+    // The token was good even if the fetch behind it was not, so it is worth
+    // keeping either way.
+    rememberToken(token);
+    dom.tokenForm.hidden = true;
+
+    // A failed upstream call still answers 200 with the cached copy, so that a
+    // refresh cannot lose the data. Saying "refreshed" to that would be a
+    // plain lie, and re-rendering would reset the reader's filters for
+    // nothing: report it and leave the chart alone.
+    if (payload.warning) {
+      say(`Refresh failed: ${payload.warning}. Still showing the cached data.`, true);
+      return;
+    }
+
+    applyPayload(payload);
+    const remaining = payload.rateLimit?.remaining;
+    say(
+      remaining === null || remaining === undefined
+        ? `Refreshed: ${payload.count} models.`
+        : `Refreshed: ${payload.count} models · ${remaining} of ${payload.rateLimit.limit} requests left.`,
+    );
+  } catch (err) {
+    // A rejected token is the one failure worth asking about again; anything
+    // else is the server or the upstream, and re-prompting would not help.
+    if (/token/i.test(err.message)) {
+      forgetToken();
+      askForToken(err.message);
+    } else {
+      dom.tokenForm.hidden = true;
+      say(err.message, true);
+    }
+  } finally {
+    dom.refresh.disabled = false;
+    dom.chartCard.classList.remove('is-loading');
+  }
+}
+
+function startRefresh() {
+  const token = storedToken();
+  if (token) {
+    refreshData(token);
+    return;
+  }
+  askForToken('Paste the refresh token printed in the server console.');
 }
 
 /**
@@ -880,6 +1208,7 @@ function setNameDefault(highlighted) {
 
 fillMetricSelects();
 fillTierList();
+fillLineList();
 bindControls();
 setNameDefault(applyHighlightParameter());
 setFiltersOpen(false);
@@ -888,5 +1217,13 @@ try {
 } catch {
   // load() renders configuration errors in the existing status region.
 }
+// Hidden until the local server says it was started with refresh on. Hiding
+// the button is presentation, not protection: the route itself refuses
+// anything that is not a loopback, same-origin POST carrying the token from
+// that server's console.
+dom.refresh.hidden = true;
+serverAllowsRefresh().then((allowed) => {
+  dom.refresh.hidden = !allowed;
+});
 setView('chart');
 load();

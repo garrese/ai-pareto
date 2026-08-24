@@ -2,6 +2,7 @@ import { summarizeModelChanges, summarizeParetoChanges } from './audit.js';
 import { MONITORED_PARETO_FRONTS, TIER_COUNT } from './definitions.js';
 import { publishImmutableObjects, publishManifestObject } from './publication.js';
 import { createSnapshotArtifacts } from './snapshots.js';
+import { DEFAULT_PAGES_NEEDED, refreshBudget } from '../quota.js';
 
 const toIso = (value) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -208,6 +209,32 @@ export async function runCollector({
     const enqueued = await enqueuePendingEvents({ state, eventBus, now, log });
     return { status: 'completed', fetched: false, enqueued, snapshotId: claim.refresh.snapshotId };
   } else if (claim.action === 'fetch') {
+    // Checked after the claim rather than before it, because only the claim
+    // says whether this execution would fetch at all: a `resume` or a `drain`
+    // touches no upstream request and must never be held back by quota.
+    const budget = refreshBudget({
+      rateLimit: claim.rateLimit ?? null,
+      pagesNeeded: claim.pages ?? DEFAULT_PAGES_NEEDED,
+      now: now(),
+    });
+
+    if (!budget.allowed) {
+      // Hand the claim back, or the next scheduled pass would find the lease
+      // held and skip for a second reason.
+      if (typeof state.releaseExecution === 'function') {
+        await state.releaseExecution({ executionId, releasedAt: toIso(now()) });
+      }
+      log('NOTICE', 'Upstream refresh deferred to protect the remaining quota', {
+        event: 'collector.refresh.deferred',
+        executionId,
+        reason: budget.reason,
+        remaining: budget.remaining ?? null,
+        pagesNeeded: budget.pagesNeeded ?? null,
+        windowResetsAt: budget.resetsAt ?? null,
+      });
+      return { status: 'deferred', fetched: false, enqueued: 0, reason: budget.reason };
+    }
+
     const previousDocuments = await loadPreviousDocuments({
       storage,
       snapshotId: claim.previousSnapshotId,
@@ -233,6 +260,9 @@ export async function runCollector({
       generatedAt,
       modelCount: result.models.length,
       rateLimit: result.rateLimit ?? null,
+      // Recorded so the next execution's guard sizes a refresh by what one
+      // actually costs today, not by a constant.
+      pages: result.pages ?? null,
       manifest: artifacts.manifestObject,
       paretoDocument: paretoDocumentFrom(artifacts),
       // Change detection needs names and metrics, not just the IDs the Pareto

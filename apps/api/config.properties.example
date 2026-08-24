@@ -27,6 +27,14 @@ aa.api.daily.limit=100
 # Port the local server listens on.
 server.port=8787
 
-# How long a cached response stays fresh, in minutes. One refresh costs one
-# request per page of results, so keep this generous.
+# How long a cached response stays fresh, in minutes. The local server never
+# refetches when this expires — it only labels the data as stale — so this is
+# now just the age at which the page says so.
 cache.ttl.minutes=360
+
+# Whether `POST /api/refresh` exists at all. It is the only route that spends
+# upstream quota, at one request per page of results, so it is off unless you
+# say otherwise. With it on, the server prints a fresh token each run and the
+# page's "Refresh data" button asks you to paste it: the token is never served
+# over HTTP, and the route also requires a loopback, same-origin POST.
+refresh.manual.enabled=false
