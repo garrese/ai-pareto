@@ -7,6 +7,11 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Turned the chart's variant letters around: `(a)` is now the ablest member of its family instead of
+  the least able. On the plot that makes `(a)` a fixed place to look for the best Claude Opus 5,
+  where ascending order made the answer "whatever letter this family happens to end on" — something
+  only the picker could tell you. Models with no measured index still take the letters at the end,
+  and no two models share a label.
 - Opened phone-width and short-landscape layouts on the gold front line alone, with model names on.
   Three medal curves inside a few hundred pixels cross and recross each other; silver and bronze
   stay in the plot as grey context, one tap from their lines coming back. Names used to start off

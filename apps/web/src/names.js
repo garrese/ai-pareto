@@ -25,18 +25,23 @@ function familyOf(name) {
 }
 
 /**
- * Ascending intelligence, so consecutive letters read as "more capable" — which
- * is the whole reason a reader tolerates them. Models with no measured index
- * sort last rather than first: they would otherwise take `(a)`–`(d)` in a
- * family like Claude Sonnet 5 and leave the two measured variants at the end of
- * the alphabet, where the ordering says nothing at all.
+ * Descending intelligence, so `(a)` is the ablest variant of its family — asked
+ * for on 2026-08-24, replacing the ascending order this shipped with. A reader
+ * hunting the best Claude Opus 5 now looks for one fixed letter instead of
+ * working out how far the alphabet happens to run in that family, which is
+ * something only the picker can tell them. Consecutive letters still read as
+ * "several reasoning levels", just counted down from the top.
+ *
+ * Models with no measured index still sort last rather than first: they would
+ * otherwise take `(a)`–`(d)` in a family like Claude Sonnet 5 and push the two
+ * measured variants down the alphabet, where the ordering says nothing at all.
  */
 function byIntelligence(left, right) {
-  const a = Number.isFinite(left.intelligence) ? left.intelligence : Infinity;
-  const b = Number.isFinite(right.intelligence) ? right.intelligence : Infinity;
+  const a = Number.isFinite(left.intelligence) ? left.intelligence : -Infinity;
+  const b = Number.isFinite(right.intelligence) ? right.intelligence : -Infinity;
   // Both unmeasured compares equal, so the name is what settles it. Some tiebreak
   // has to be deterministic or a reload can move a model's letter.
-  if (a !== b) return a - b;
+  if (a !== b) return b - a;
   return left.name.localeCompare(right.name);
 }
 
