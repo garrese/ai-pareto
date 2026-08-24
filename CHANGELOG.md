@@ -11,6 +11,17 @@ because the evolution they integrate appears once under its work commit.
   collector now logs the repeated variants, source pages and differing fields, archives the full
   rejected upstream walk in a private 30-day bucket, and still leaves the public manifest untouched
   until a duplicate-resolution policy is agreed from real evidence.
+- Opened phone-width and short-landscape layouts on the gold front line alone, with model names on.
+  Three medal curves inside a few hundred pixels cross and recross each other; silver and bronze
+  stay in the plot as grey context, one tap from their lines coming back. Names used to start off
+  on exactly these screens — a dozen of them there are the chart rather than an annotation of it,
+  which is now accepted deliberately: a phone opens on the plot, and which models the gold front
+  holds is the question it is opened with.
+- Carried the chart's shorthand into the two places a reader arrives from the plot: the model
+  picker now prints each model's chart label under its name and matches it in its own filter box,
+  and the table holds the bare variant letter in a mini-column right of the name, `(e)`, with the
+  full chart label on the cell. A letter read off a mark is now something you can look up and type
+  back, instead of a mark you have to recognise by position.
 - Let the chart's names spend the room a zoom buys. Unzoomed nothing changes: only the best front
   wearing its line is named. Zoomed, every front on show is named, best first, and once the window
   is sparse enough that everything visible fits under the label cap, the dominated cloud is named

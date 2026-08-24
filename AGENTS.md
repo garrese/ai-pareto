@@ -247,6 +247,17 @@ unmeasured models taking the last letters rather than the first. `name` itself i
 the card, the table and the pickers all keep showing the real thing, and the search box matches
 both, because a reader types back what the plot spelled out.
 
+**The shorthand rides alongside the real name** (2026-08-24) everywhere the reader might arrive
+from the plot holding a letter. The model picker prints the chart label under the name — beside the
+creator, `Anthropic · Claude Opus 5 (b)` — and matches it in its own filter box, so `opus 5 (b)`
+finds the one model it names. The table carries only the **bare letter, in a mini-column of its own
+right of the name**, `(e)`, with the whole chart label on the cell's `title`: a name column wide
+enough for both would be wider than the names, and `width: 1%` makes the column give back every
+pixel it does not need. `withShortNames` therefore returns `shortLetter` next to `shortName`, rather
+than leaving the places that only have room for the letter to parse it back out of the label. Both
+are dropped where the label says nothing the name does not — a picker note or a mini-column that
+repeats the line beside it is noise, not redundancy.
+
 Letters rather than salvaged words was decided with the user on 2026-08-24, after both were
 measured. Families mix short suffixes with long ones — `GPT-5.6 Terra` has `(low)` next to
 `(Non-reasoning)` — so keeping the short ones would make the shorthand mean two different things
@@ -272,15 +283,17 @@ before, and a 375px phone names 14 where it used to fit almost none.
   should not lose it. They are served *after* every match, so the matches take the closest, cleanest
   slots and the dimmed names fill in what is left — including nothing at all, on a plot the matches
   have already filled, because `LABEL_LIMIT` still caps the total. **The checkbox is the only
-  switch**: a phone that has names on dims them exactly as a desktop does. Screen width already
-  decides whether the checkbox starts on, and letting it decide twice would take names away from a
-  reader who asked for them the moment they typed — a compact carve-out was tried and removed
-  (2026-08-24). The consequence is deliberate: a bot link turns names on whatever the screen, so at
-  phone width it lands on its match named plus about a dozen dimmed ones.
-- A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **off on the
-  screens that fold the filters away** — a dozen names on a phone-width plot are the chart, not an
-  annotation of it — and **on regardless when the URL carries `?highlight=`**, because the name is
-  the entire reason a bot link was followed.
+  switch**: a phone that has names on dims them exactly as a desktop does. A compact carve-out was
+  tried and removed (2026-08-24) — it would take names away from a reader who asked for them the
+  moment they typed. The consequence is deliberate: at phone width a search lands on its match
+  named plus about a dozen dimmed ones.
+- A **"Relevant model names" checkbox** in the filters turns the whole thing off. It starts **on
+  everywhere**, asked for on 2026-08-24. It used to start off on the screens that fold the filters
+  away, on the grounds that a dozen names on a phone-width plot are the chart rather than an
+  annotation of it. That is still true and is now accepted: a phone opens on the plot, the fourteen
+  names it places at 375px are all the gold front's, and which models those are is the question the
+  page is opened with. Nothing turns the checkbox on or off by itself any more — `?highlight=` used
+  to have to, and no longer needs to.
 - The **two ends of the front are served before anyone else**. They answer "what is the best there
   is" and "what is the least I can pay to still be on the front", and the top end sits in the corner
   where space runs out first: served on crowding alone it went unnamed, which is the one omission a
@@ -328,14 +341,25 @@ else gives them up.
 - The **filters fold away** behind a "Show filters" button below 720px and on short landscape
   screens, so a phone opens on data. The **chart/table switch stays outside the fold** — it is the
   one control that must always be one tap away.
+- Those same screens **open with the gold front line alone, and with names on** (2026-08-24).
+  Three medal curves inside a few hundred pixels cross and recross each other, and gold is the
+  front a phone is opened for; silver and bronze stay in the plot as grey context, one tap from
+  their lines coming back. It costs no names — only the best front on show is named anyway — so
+  what a phone gets is one curve and its models spelled out. `isCompactLayout` in `main.js` is the
+  single media query both defaults read, and it is the one the filters fold behind: keep them
+  reading the same query rather than a second, drifting copy of it.
 - The **card names the full model and its release date**. Latency is the one metric it leaves out —
   it is the least asked-for of the five and the release date earns the row more — but it returns
   whenever it is on an axis, because a card that omitted the coordinate under the pointer would be
   answering a question nobody asked. The card is also the only place the untruncated name exists, so
   it is width-capped and wraps.
-- **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
-  Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
-  title, because a spelled-out heading widens a column past anything its values ever hold.
+- **Table column order is deliberate**: tier, model, `Var`, intelligence, cost/task first, creator
+  last. Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an
+  `<abbr>` title, because a spelled-out heading widens a column past anything its values ever hold.
+  `Var` is the chart's variant letter and sits immediately right of the name because that is where
+  a reader arriving from the plot looks; it costs 24px at 375px, which leaves tier, model, `Var` and
+  intelligence on screen with cost/task beside them. Anything wider there goes in front of the
+  columns worth reading, so measure before adding one.
 - Model names must stay wrappable. Their column has a `min-width` floor on phones: without it the
   column collapses to its longest word and rows grow six lines tall.
 
@@ -356,7 +380,9 @@ after medal-coloured marks with no front to explain them read as a bug) — but 
 leave the plot; removing models is the tier picker's job. The demotion is presentation-deep:
 `ranked` in `chart.js` follows it, so labels price a demoted mark as cloud and broad searches do
 not single it out, and the legend swatch turns grey so the legend keeps decoding what is actually
-drawn. A hidden tier has no line either, because a line over missing marks points at nothing.
+drawn. A hidden tier has no line either, because a line over missing marks points at nothing. It
+opens with every line checked on a wide layout and with **gold alone on the folded ones** — see
+"Small screens".
 
 The tier and line pickers look identical and do different things, so the distinction is carried
 structurally: the filter panel is a labelled rail of single-line rows — "Axes", "Filter models"

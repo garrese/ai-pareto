@@ -13,8 +13,9 @@
  * `(Non-reasoning)` — and lettering only the ones that need it makes the
  * shorthand mean two different things within one family.
  *
- * `name` is never replaced. This adds `shortName` alongside it, and the card,
- * the table and the pickers go on showing the real thing.
+ * `name` is never replaced. This adds `shortName` alongside it, plus the bare
+ * `shortLetter` for the places that only have room for the letter, and the
+ * card, the table and the pickers go on showing the real thing.
  */
 
 /** Everything up to the first parenthesis: the family a variant belongs to. */
@@ -53,9 +54,10 @@ function letterFor(index) {
 }
 
 /**
- * Copies of `models` with a `shortName` added to each. Computed over the whole
- * dataset, once, rather than over what is drawn: a letter that changed as you
- * filtered would be worse than no letter.
+ * Copies of `models` with a `shortName`, and a `shortLetter` where one was
+ * assigned, added to each. Computed over the whole dataset, once, rather than
+ * over what is drawn: a letter that changed as you filtered would be worse than
+ * no letter.
  *
  * @param {any[]} models
  * @returns {any[]}
@@ -70,6 +72,7 @@ export function withShortNames(models) {
   }
 
   const shortNames = new Map();
+  const letters = new Map();
   for (const [family, members] of families) {
     // Alone in its family, the parenthesis distinguishes it from nothing, so it
     // just goes. A model with no parenthesis at all comes through unchanged.
@@ -77,14 +80,19 @@ export function withShortNames(models) {
       shortNames.set(members[0].id, family);
       continue;
     }
-    [...members]
-      .sort(byIntelligence)
-      .forEach((model, index) => shortNames.set(model.id, `${family} (${letterFor(index)})`));
+    [...members].sort(byIntelligence).forEach((model, index) => {
+      const letter = letterFor(index);
+      letters.set(model.id, letter);
+      shortNames.set(model.id, `${family} (${letter})`);
+    });
   }
 
+  // The letter is kept apart from the label it was built into: the table shows
+  // it on its own, in a column the family name would never fit in.
   return models.map((model) => ({
     ...model,
     shortName: shortNames.get(model.id) ?? model.name,
+    shortLetter: letters.get(model.id) ?? null,
   }));
 }
 

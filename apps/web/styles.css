@@ -897,6 +897,15 @@ body {
   flex: none;
 }
 
+/* Three characters wide and no wider: `width: 1%` makes the column give every
+   pixel it does not need back to the name beside it. Muted, because the letter
+   points at the plot rather than saying anything about the model. */
+.data-table .variant {
+  width: 1%;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
 .tier-cell {
   display: inline-flex;
   align-items: center;
