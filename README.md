@@ -159,17 +159,6 @@ Cloud delivery is intentionally treated as at-least-once. A transactional outbox
 | Notifications | X API with OAuth 1.0a User Context | A private Pub/Sub push consumer renders and publishes changes to the monitored frontier. |
 | Testing | Node.js built-in test runner | Dependency-light unit and contract coverage across all three applications. |
 
-## Engineering decisions worth exploring
-
-| Decision | Reasoning |
-| --- | --- |
-| Keep credentials off the client | The upstream API key exists only in the local server or Secret Manager; the browser receives normalized public data, never a token. |
-| Cache and batch upstream reads | The source endpoint is paginated and quota-limited. A refresh fetches each page once, caches locally during development, and refreshes in production every four hours. |
-| Publish immutable snapshots | Static browsers never read partly written data. A small manifest points to a complete versioned snapshot. |
-| Separate collection from notification | A problem delivering a social post cannot trigger extra upstream calls or prevent new data from being published. |
-| Model delivery failures explicitly | Pub/Sub may retry. Deterministic event IDs, an outbox, Firestore transactions, and an eventual-consistency-aware reconciliation flow make those retries safe to handle. |
-| Preserve meaning in the visual design | Medal colours have textual and table equivalents, labels use collision-aware placement, and filters distinguish between recomputing data and only changing what is drawn. |
-
 ## Repository guide
 
 ```text
