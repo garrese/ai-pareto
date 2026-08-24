@@ -392,6 +392,8 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
  * @param {object} options.yMetric
  * @param {Set<string>|null} options.matches  ids matching the search, or null when idle
  * @param {Set<number|'rest'>|null} options.visibleTiers  tiers to draw, or null for all
+ * @param {Set<number>|null} options.visibleFrontLines  front lines to draw, or null for all.
+ *   Weaker than `visibleTiers` on purpose: it hides a line, never the models on it.
  * @param {boolean} options.showLabels  whether models are named on the plot
  * @param {(model: any, tierIndex: number|null, event: MouseEvent|null) => void} options.onHover
  * @returns {number} how many drawn labels are shortened, so the caller can say so
@@ -404,10 +406,15 @@ export function renderChart({
   yMetric,
   matches,
   visibleTiers,
+  visibleFrontLines,
   showLabels,
   onHover,
 }) {
   const shows = (tier) => !visibleTiers || visibleTiers.has(tier);
+  // A front's line needs its models on show too: a line over a hidden tier
+  // would point at marks that are not there.
+  const showsLine = (tier) =>
+    shows(tier) && (!visibleFrontLines || visibleFrontLines.has(tier));
   const tierOf = new Map();
   fronts.forEach((front, index) => front.forEach((model) => tierOf.set(model.id, index)));
 
@@ -575,7 +582,7 @@ export function renderChart({
   // wherever the tiers crowd together gold has to land on top of silver and
   // silver on top of bronze, or the medal ranking reads upside down.
   for (let index = fronts.length - 1; index >= 0; index -= 1) {
-    if (!shows(index)) continue;
+    if (!showsLine(index)) continue;
     const path = frontPath(fronts[index], xObjective, yObjective);
     if (path.length > 1) {
       const points = path.map((p) => ({ x: x.map(p.x), y: y.map(p.y) }));

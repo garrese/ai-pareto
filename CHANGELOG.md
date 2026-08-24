@@ -7,6 +7,13 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Added a "Front lines" picker that toggles each Pareto front's line without touching its models —
+  leave only gold checked and the silver and bronze curves disappear while every mark stays put.
+  It is deliberately weaker than the tier picker, which removes a tier's models from the plot, and
+  the filters row now says so structurally: the controls sit in labelled groups — "Axes", "Filter
+  models", "Overlays" — with a one-line hint inside each picker spelling out which of the two
+  things it does.
+
 - Fixed the chart's stacking order where tiers crowd together: silver and bronze marks and front
   lines were painted over gold, because SVG stacks in document order and the fronts were drawn
   best-first. Both passes now paint the worst front first, so the medal hierarchy reads the right

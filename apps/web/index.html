@@ -54,15 +54,123 @@
         </button>
       </div>
 
+      <!-- The groups draw the line the controls themselves cannot: everything
+           under "Filter models" changes which models are plotted, everything
+           under "Overlays" only changes what is drawn on top of them. -->
       <div class="controls" id="controls" role="group" aria-label="Chart options">
-        <label class="control">
-          <span>X axis</span>
-          <select id="x-metric"></select>
-        </label>
-        <label class="control">
-          <span>Y axis</span>
-          <select id="y-metric"></select>
-        </label>
+        <div class="control-group" role="group" aria-labelledby="axes-group-label">
+          <span class="control-group-label" id="axes-group-label">Axes</span>
+          <div class="control-group-row">
+            <label class="control">
+              <span>X axis</span>
+              <select id="x-metric"></select>
+            </label>
+            <label class="control">
+              <span>Y axis</span>
+              <select id="y-metric"></select>
+            </label>
+            <label class="control control-check">
+              <input type="checkbox" id="log-scale" checked />
+              <span>Logarithmic scale</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group" role="group" aria-labelledby="filter-group-label">
+          <span class="control-group-label" id="filter-group-label">Filter models</span>
+          <div class="control-group-row">
+            <div class="control">
+              <span>Tiers</span>
+              <details class="picker" id="tier-picker">
+                <summary id="tier-summary">All tiers</summary>
+                <div class="picker-panel">
+                  <div class="picker-actions">
+                    <button type="button" id="tiers-all">Select all</button>
+                    <button type="button" id="tiers-none">Clear</button>
+                  </div>
+                  <div class="picker-list" id="tier-list"></div>
+                  <p class="picker-hint">Hides a tier's models from the plot.</p>
+                </div>
+              </details>
+            </div>
+
+            <!-- Both long pickers filter themselves: 60 creators and 600 models are
+                 more than anyone scrolls through. The action buttons act on what the
+                 filter leaves visible, and say so when one is typed. -->
+            <div class="control">
+              <span>Creators</span>
+              <details class="picker" id="creator-picker">
+                <summary id="creator-summary">All creators</summary>
+                <div class="picker-panel">
+                  <input
+                    type="search"
+                    class="picker-filter"
+                    id="creator-filter"
+                    placeholder="Find a creator…"
+                    aria-label="Find a creator"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <div class="picker-actions">
+                    <button type="button" id="creators-all">Select all</button>
+                    <button type="button" id="creators-none">Clear</button>
+                  </div>
+                  <div class="picker-list" id="creator-list"></div>
+                  <p class="picker-empty" id="creator-empty" hidden>No creator matches that.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="control">
+              <span>Models</span>
+              <details class="picker" id="model-picker">
+                <summary id="model-summary">All models</summary>
+                <div class="picker-panel">
+                  <input
+                    type="search"
+                    class="picker-filter"
+                    id="model-filter"
+                    placeholder="Find a model…"
+                    aria-label="Find a model"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <div class="picker-actions">
+                    <button type="button" id="models-all">Select all</button>
+                    <button type="button" id="models-none">Clear</button>
+                  </div>
+                  <div class="picker-list" id="model-list"></div>
+                  <p class="picker-empty" id="model-empty" hidden>No model matches that.</p>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group" role="group" aria-labelledby="overlay-group-label">
+          <span class="control-group-label" id="overlay-group-label">Overlays</span>
+          <div class="control-group-row">
+            <div class="control">
+              <span>Front lines</span>
+              <details class="picker" id="line-picker">
+                <summary id="line-summary">All lines</summary>
+                <div class="picker-panel">
+                  <div class="picker-actions">
+                    <button type="button" id="lines-all">Select all</button>
+                    <button type="button" id="lines-none">Clear</button>
+                  </div>
+                  <div class="picker-list" id="line-list"></div>
+                  <p class="picker-hint">Hides only the line — its models stay plotted.</p>
+                </div>
+              </details>
+            </div>
+
+            <label class="control control-check">
+              <input type="checkbox" id="show-labels" checked />
+              <span>Relevant model names</span>
+            </label>
+          </div>
+        </div>
 
         <label class="control control-search">
           <span>Highlight</span>
@@ -73,81 +181,6 @@
             autocomplete="off"
             spellcheck="false"
           />
-        </label>
-
-        <div class="control">
-          <span>Tiers</span>
-          <details class="picker" id="tier-picker">
-            <summary id="tier-summary">All tiers</summary>
-            <div class="picker-panel">
-              <div class="picker-actions">
-                <button type="button" id="tiers-all">Select all</button>
-                <button type="button" id="tiers-none">Clear</button>
-              </div>
-              <div class="picker-list" id="tier-list"></div>
-            </div>
-          </details>
-        </div>
-
-        <!-- Both long pickers filter themselves: 60 creators and 600 models are
-             more than anyone scrolls through. The action buttons act on what the
-             filter leaves visible, and say so when one is typed. -->
-        <div class="control">
-          <span>Creators</span>
-          <details class="picker" id="creator-picker">
-            <summary id="creator-summary">All creators</summary>
-            <div class="picker-panel">
-              <input
-                type="search"
-                class="picker-filter"
-                id="creator-filter"
-                placeholder="Find a creator…"
-                aria-label="Find a creator"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <div class="picker-actions">
-                <button type="button" id="creators-all">Select all</button>
-                <button type="button" id="creators-none">Clear</button>
-              </div>
-              <div class="picker-list" id="creator-list"></div>
-              <p class="picker-empty" id="creator-empty" hidden>No creator matches that.</p>
-            </div>
-          </details>
-        </div>
-
-        <div class="control">
-          <span>Models</span>
-          <details class="picker" id="model-picker">
-            <summary id="model-summary">All models</summary>
-            <div class="picker-panel">
-              <input
-                type="search"
-                class="picker-filter"
-                id="model-filter"
-                placeholder="Find a model…"
-                aria-label="Find a model"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <div class="picker-actions">
-                <button type="button" id="models-all">Select all</button>
-                <button type="button" id="models-none">Clear</button>
-              </div>
-              <div class="picker-list" id="model-list"></div>
-              <p class="picker-empty" id="model-empty" hidden>No model matches that.</p>
-            </div>
-          </details>
-        </div>
-
-        <label class="control control-check">
-          <input type="checkbox" id="log-scale" checked />
-          <span>Logarithmic axes</span>
-        </label>
-
-        <label class="control control-check">
-          <input type="checkbox" id="show-labels" checked />
-          <span>Relevant model names</span>
         </label>
 
         <!-- Both are local-development controls and are hidden on the hosted
