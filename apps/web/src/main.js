@@ -587,6 +587,9 @@ function updateLineSummary() {
 function fillLineList() {
   dom.lineList.replaceChildren();
 
+  // A phone opens on gold alone, a wide layout on all three.
+  const goldOnly = isCompactLayout();
+
   TIERS.forEach((tier, index) => {
     const row = document.createElement('label');
     row.className = 'picker-row';
@@ -594,8 +597,8 @@ function fillLineList() {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.value = String(index);
-    box.checked = true;
-    state.frontLines.add(index);
+    box.checked = !goldOnly || index === 0;
+    if (box.checked) state.frontLines.add(index);
     box.addEventListener('change', () => {
       if (box.checked) state.frontLines.add(index);
       else state.frontLines.delete(index);
@@ -1203,31 +1206,36 @@ function startRefresh() {
  */
 function applyHighlightParameter() {
   const requested = new URLSearchParams(globalThis.location?.search ?? '').get('highlight');
-  if (!requested) return false;
+  if (!requested) return;
   dom.search.value = requested;
   state.query = requested;
-  return true;
 }
 
 /**
- * The same screens that fold the filters away start with names off: a dozen of
- * them on a phone-width plot would be the chart rather than an annotation of
- * it. A link from the bot turns them on anyway, whatever the screen — the name
- * is the entire reason that link was followed.
+ * The screens that fold the filters away. They open with the gold line alone
+ * (2026-08-24): three medal curves inside a few hundred pixels cross and
+ * recross, and gold is the front a phone is opened for. The other two stay in
+ * the plot as grey context, one tap from their lines coming back.
+ *
+ * Names are no longer part of this. They used to start off here — a dozen of
+ * them on a phone-width plot read as the chart rather than an annotation of it,
+ * which is now accepted deliberately: the fourteen a 375px plot places are all
+ * the gold front's, and which models those are is the question a phone is
+ * opened with.
  */
-function setNameDefault(highlighted) {
-  const cramped =
+function isCompactLayout() {
+  return (
     globalThis.matchMedia?.(
       '(max-width: 720px), (orientation: landscape) and (max-height: 500px) and (max-width: 960px)',
-    ).matches ?? false;
-  dom.showLabels.checked = highlighted || !cramped;
+    ).matches ?? false
+  );
 }
 
 fillMetricSelects();
 fillTierList();
 fillLineList();
 bindControls();
-setNameDefault(applyHighlightParameter());
+applyHighlightParameter();
 setFiltersOpen(false);
 try {
   if (dataSourceMode() === 'snapshot') dom.usage.hidden = true;

@@ -7,6 +7,12 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Opened phone-width and short-landscape layouts on the gold front line alone, with model names on.
+  Three medal curves inside a few hundred pixels cross and recross each other; silver and bronze
+  stay in the plot as grey context, one tap from their lines coming back. Names used to start off
+  on exactly these screens — a dozen of them there are the chart rather than an annotation of it,
+  which is now accepted deliberately: a phone opens on the plot, and which models the gold front
+  holds is the question it is opened with.
 - Carried the chart's shorthand into the two places a reader arrives from the plot: the model
   picker now prints each model's chart label under its name and matches it in its own filter box,
   and the table holds the bare variant letter in a mini-column right of the name, `(e)`, with the
