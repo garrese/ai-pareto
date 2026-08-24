@@ -67,6 +67,13 @@ make a static-only build possible again.
   pass is never gated, because neither touches upstream.
 - This endpoint **does** return `X-RateLimit-Limit/Remaining/Reset`. `/api/usage` serves the last
   snapshot from `.cache/usage.json` rather than spending a request to ask.
+- **Duplicate model IDs remain a hard rejection pending evidence** (2026-08-24). The production
+  collector preserves the complete successful page envelopes and normalized walk in a separate
+  private diagnostics bucket, logs every occurrence's page/position and differing fields, and then
+  fails without preparing or publishing a snapshot. The bucket has public-access prevention and a
+  30-day default lifecycle; its object path is in the rejection log. Never expose these captures
+  through `public/latest.json`, and do not silently choose the first or last duplicate until an
+  explicit policy is agreed from real captured data.
 - Docs: <https://artificialanalysis.ai/data-api/docs>
 
 ### The old endpoint is being retired

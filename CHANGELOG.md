@@ -7,6 +7,10 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Preserved duplicate-ID refresh failures for diagnosis without weakening publication safety. The
+  collector now logs the repeated variants, source pages and differing fields, archives the full
+  rejected upstream walk in a private 30-day bucket, and still leaves the public manifest untouched
+  until a duplicate-resolution policy is agreed from real evidence.
 - Opened phone-width and short-landscape layouts on the gold front line alone, with model names on.
   Three medal curves inside a few hundred pixels cross and recross each other; silver and bronze
   stay in the plot as grey context, one tap from their lines coming back. Names used to start off

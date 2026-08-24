@@ -56,6 +56,12 @@ resource "google_storage_bucket_iam_member" "collector_object_admin" {
   member = "serviceAccount:${google_service_account.collector.email}"
 }
 
+resource "google_storage_bucket_iam_member" "collector_diagnostics_object_admin" {
+  bucket = google_storage_bucket.collector_diagnostics.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.collector.email}"
+}
+
 resource "google_pubsub_topic_iam_member" "collector_publisher" {
   project = var.project_id
   topic   = google_pubsub_topic.pareto_changes.name

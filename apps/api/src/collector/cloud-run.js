@@ -33,6 +33,11 @@ async function main() {
     leaseSeconds: config.leaseSeconds,
     source: new ArtificialAnalysisClient(config.api),
     storage: new CloudStorageJsonStore({ bucketName: config.bucketName, auth }),
+    diagnosticStore: new CloudStorageJsonStore({
+      bucketName: config.diagnosticsBucketName,
+      auth,
+    }),
+    taskAttempt: config.taskAttempt,
     state: new FirestoreCollectorState(firestore),
     eventBus: new PubSubEventBus(pubsub, config.topicName),
     log: structuredLog,
