@@ -7,6 +7,12 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Reworked the filters panel after the first grouped layout read as clutter: the group captions
+  floated above a second deck of control labels and the search box was orphaned on a mostly empty
+  row. The groups are now a labelled rail — Axes, Filter models, Overlays, Highlight — with one
+  single-line row each, control labels beside their widgets, and the utility buttons tucked into
+  the Highlight row's right end. Phones keep the folded panel and stack the rail labels as section
+  lines over two-column rows.
 - Recorded the chart zoom and front-line picker decisions in the agent guide: the zoom is a view
   and never a filter, one finger must keep scrolling the page, the paint order is worst-front-first,
   and the labelled control groups carry the tier-versus-line distinction.
