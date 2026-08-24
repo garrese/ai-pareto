@@ -528,6 +528,15 @@ body {
   color: var(--text-muted);
 }
 
+/* Only rendered when a shortened name is actually on the plot, so it stays a
+   footnote about what the reader can see rather than a standing disclaimer. */
+.chart-note {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 /* ── Chart internals ─────────────────────────────────────────────────────── */
 
 .grid line {
@@ -647,6 +656,7 @@ body {
   position: fixed;
   z-index: 30;
   min-width: 200px;
+  max-width: min(280px, calc(100vw - 24px));
   padding: 10px 12px;
   pointer-events: none;
   background: var(--surface-1);
@@ -656,9 +666,12 @@ body {
   font-size: 0.82rem;
 }
 
+/* The plot may only have room for `Claude Opus 5 (e)`; this is where the whole
+   configuration is spelled out, so it wraps rather than stretching the card. */
 .tooltip .tip-name {
   font-weight: 600;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .tooltip .tip-creator {
