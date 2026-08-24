@@ -22,6 +22,11 @@ const dom = {
   tierList: document.getElementById('tier-list'),
   tiersAll: document.getElementById('tiers-all'),
   tiersNone: document.getElementById('tiers-none'),
+  linePicker: document.getElementById('line-picker'),
+  lineSummary: document.getElementById('line-summary'),
+  lineList: document.getElementById('line-list'),
+  linesAll: document.getElementById('lines-all'),
+  linesNone: document.getElementById('lines-none'),
   creatorPicker: document.getElementById('creator-picker'),
   creatorSummary: document.getElementById('creator-summary'),
   creatorList: document.getElementById('creator-list'),
@@ -80,6 +85,8 @@ const state = {
   selectionEdited: false,
   /** Visible tiers. Holds 0–2 for the fronts and 'rest' for the runners-up. */
   tiers: new Set(),
+  /** Front lines being drawn, 0–2. Unlike `tiers` this never hides a model. */
+  frontLines: new Set(),
   query: '',
   view: 'chart',
 };
@@ -96,6 +103,14 @@ const tierColor = (index) =>
 const dot = (color) => {
   const swatch = document.createElement('span');
   swatch.className = 'swatch';
+  swatch.style.background = color;
+  return swatch;
+};
+
+/** A short bar, not a dot: the row toggles the line, never the models. */
+const lineSwatch = (color) => {
+  const swatch = document.createElement('span');
+  swatch.className = 'swatch-line';
   swatch.style.background = color;
   return swatch;
 };
@@ -130,6 +145,11 @@ const tierShown = (tier) => {
   const visible = visibleTiers();
   return !visible || visible.has(tier);
 };
+
+/** Null when every line is drawn, mirroring `visibleTiers`. */
+function visibleFrontLines() {
+  return state.frontLines.size === TIERS.length ? null : state.frontLines;
+}
 
 // The shortened label counts too: what the plot spells out is what a reader
 // types back into the box, and it is not always the real name.
@@ -382,6 +402,7 @@ function render() {
     yMetric: metricFor(state.y),
     matches,
     visibleTiers: visibleTiers(),
+    visibleFrontLines: visibleFrontLines(),
     showLabels: dom.showLabels.checked,
     onHover: renderTooltip,
   });
@@ -475,6 +496,61 @@ function setAllTiers(selected) {
     if (selected) state.tiers.add(box.value === 'rest' ? 'rest' : Number(box.value));
   }
   updateTierSummary();
+  render();
+}
+
+// ── front-line picker ────────────────────────────────────────────────────────
+// The same shape as the tier picker, doing a strictly weaker thing: unchecking
+// a row stops that front's line being drawn, but its models stay on the plot.
+
+function updateLineSummary() {
+  const chosen = state.frontLines.size;
+  dom.lineSummary.textContent =
+    chosen === TIERS.length
+      ? 'All lines'
+      : chosen === 0
+        ? 'No lines'
+        : chosen === 1
+          ? `${TIERS.find((_, index) => state.frontLines.has(index))?.name} only`
+          : `${chosen} of ${TIERS.length} lines`;
+}
+
+function fillLineList() {
+  dom.lineList.replaceChildren();
+
+  TIERS.forEach((tier, index) => {
+    const row = document.createElement('label');
+    row.className = 'picker-row';
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = String(index);
+    box.checked = true;
+    state.frontLines.add(index);
+    box.addEventListener('change', () => {
+      if (box.checked) state.frontLines.add(index);
+      else state.frontLines.delete(index);
+      updateLineSummary();
+      render();
+    });
+
+    const text = document.createElement('span');
+    text.textContent = tier.name;
+
+    row.append(box, lineSwatch(tierColor(index)), text);
+    dom.lineList.append(row);
+  });
+
+  updateLineSummary();
+}
+
+function setAllLines(selected) {
+  state.frontLines.clear();
+  for (const box of dom.lineList.querySelectorAll('input')) {
+    box.checked = selected;
+    if (selected) state.frontLines.add(Number(box.value));
+  }
+  updateLineSummary();
   render();
 }
 
@@ -770,6 +846,8 @@ function bindControls() {
   });
   dom.tiersAll.addEventListener('click', () => setAllTiers(true));
   dom.tiersNone.addEventListener('click', () => setAllTiers(false));
+  dom.linesAll.addEventListener('click', () => setAllLines(true));
+  dom.linesNone.addEventListener('click', () => setAllLines(false));
   dom.creatorsAll.addEventListener('click', () => setAllCreators(true));
   dom.creatorsNone.addEventListener('click', () => setAllCreators(false));
   dom.modelsAll.addEventListener('click', () => setAllModels(true));
@@ -809,7 +887,7 @@ function bindControls() {
 
   // Close a dropdown when clicking outside it.
   document.addEventListener('click', (event) => {
-    for (const picker of [dom.tierPicker, dom.creatorPicker, dom.modelPicker]) {
+    for (const picker of [dom.tierPicker, dom.linePicker, dom.creatorPicker, dom.modelPicker]) {
       if (picker.open && !picker.contains(event.target)) picker.open = false;
     }
   });
@@ -1062,6 +1140,7 @@ function setNameDefault(highlighted) {
 
 fillMetricSelects();
 fillTierList();
+fillLineList();
 bindControls();
 setNameDefault(applyHighlightParameter());
 setFiltersOpen(false);

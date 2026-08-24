@@ -246,6 +246,29 @@ body {
   margin-left: auto;
 }
 
+/* Labelled groups keep the two kinds of control visibly apart: "Filter models"
+   changes which models are plotted, "Overlays" only what is drawn on top. */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-group-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.control-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
 .toggle,
 .filters-toggle,
 #usage,
@@ -381,6 +404,15 @@ body {
   color: var(--text-muted);
 }
 
+/* One line under the list saying what checking a row actually does — the tier
+   and front-line pickers look identical and do two different things. */
+.picker-hint {
+  margin: 0;
+  padding: 2px 14px 10px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
 .picker-list {
   /* Model names wrap to two or three lines, so a flat 320px showed four of them.
      Half the viewport is as much as a dropdown can take without covering what it
@@ -444,6 +476,14 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex: none;
+}
+
+/* A bar where the tier rows carry a dot: the row toggles a line, not models. */
+.picker-row .swatch-line {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
   flex: none;
 }
 
@@ -899,6 +939,20 @@ body {
     gap: 4px;
   }
 
+  /* The groups keep their labels but hand the two-column rhythm back to the
+     grid, so the folded panel stays as short as it was. */
+  .control-group {
+    grid-column: 1 / -1;
+    gap: 4px;
+  }
+
+  .control-group-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 10px 8px;
+  }
+
   .control select,
   .control input[type='search'],
   .picker summary {
@@ -1087,6 +1141,18 @@ body {
   .control-actions {
     min-width: 0;
     grid-column: auto;
+  }
+
+  .control-group {
+    grid-column: 1 / -1;
+    gap: 4px;
+  }
+
+  .control-group-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+    gap: 6px;
   }
 
   .control select,
