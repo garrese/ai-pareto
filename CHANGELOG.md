@@ -7,6 +7,11 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Made an unchecked front line demote its whole tier to context: the marks now take the dominated
+  cloud's grey instead of keeping a medal colour with no front to explain it. Nothing leaves the
+  plot — that stays the tier picker's job — but labels, searches and the legend all follow the
+  demotion: a grey mark prices and searches as cloud, the legend swatch turns grey with a note, and
+  the idle names go to the best front still wearing its line.
 - Reworked the filters panel after the first grouped layout read as clutter: the group captions
   floated above a second deck of control labels and the search box was orphaned on a mostly empty
   row. The groups are now a labelled rail — Axes, Filter models, Overlays, Highlight — with one

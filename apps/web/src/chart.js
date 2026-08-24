@@ -450,7 +450,8 @@ function drawLabels({ parent, targets, obstacles, segments, plot, compact }) {
  * @param {Set<string>|null} options.matches  ids matching the search, or null when idle
  * @param {Set<number|'rest'>|null} options.visibleTiers  tiers to draw, or null for all
  * @param {Set<number>|null} options.visibleFrontLines  front lines to draw, or null for all.
- *   Weaker than `visibleTiers` on purpose: it hides a line, never the models on it.
+ *   Weaker than `visibleTiers` on purpose: an unchecked front loses its line and its
+ *   marks take the dominated cloud's grey, but the models never leave the plot.
  * @param {boolean} options.showLabels  whether models are named on the plot
  * @param {{x: number[], y: number[]}|null} options.zoom  raw-value window to show, or
  *   null for the whole field. A view, never a filter: fronts, legend and table
@@ -477,8 +478,10 @@ export function renderChart({
   onZoom,
 }) {
   const shows = (tier) => !visibleTiers || visibleTiers.has(tier);
-  // A front's line needs its models on show too: a line over a hidden tier
-  // would point at marks that are not there.
+  // A front whose line is unchecked is demoted whole: no line, and its marks
+  // take the dominated cloud's grey (2026-08-24) — a medal colour with no
+  // front to explain it read as a bug. The models never leave the plot; that
+  // is the tier picker's job. A hidden tier has no line either, of course.
   const showsLine = (tier) =>
     shows(tier) && (!visibleFrontLines || visibleFrontLines.has(tier));
   const tierOf = new Map();
@@ -658,21 +661,23 @@ export function renderChart({
   // Marks -------------------------------------------------------------------
   const markClass = (model) => (matches && matches.has(model.id) ? 'is-match' : '');
 
-  if (shows('rest')) {
-    const rest = el('g', { class: 'mark-rest' });
-    for (const model of plotted) {
-      if (tierOf.has(model.id)) continue;
-      rest.append(
-        el('circle', {
-          cx: x.map(model[xMetric.key]),
-          cy: y.map(model[yMetric.key]),
-          r: 3.5,
-          class: markClass(model),
-        }),
-      );
-    }
-    zoomLayer.append(rest);
+  // The grey field: the dominated cloud plus every tier demoted by the
+  // front-lines picker. `plotted` has already dropped whatever the tier picker
+  // hides, so membership here is purely "drawn without a front".
+  const rest = el('g', { class: 'mark-rest' });
+  for (const model of plotted) {
+    const tier = tierOf.get(model.id);
+    if (tier !== undefined && showsLine(tier)) continue;
+    rest.append(
+      el('circle', {
+        cx: x.map(model[xMetric.key]),
+        cy: y.map(model[yMetric.key]),
+        r: 3.5,
+        class: markClass(model),
+      }),
+    );
   }
+  if (rest.childElementCount > 0) zoomLayer.append(rest);
 
   const xObjective = { value: (m) => m[xMetric.key], dir: xMetric.dir };
   const yObjective = { value: (m) => m[yMetric.key], dir: yMetric.dir };
@@ -703,7 +708,7 @@ export function renderChart({
   }
 
   for (let index = fronts.length - 1; index >= 0; index -= 1) {
-    if (!shows(index)) continue;
+    if (!showsLine(index)) continue;
     const group = el('g', { class: `mark-tier tier-${index}` });
     for (const model of fronts[index]) {
       group.append(
@@ -718,13 +723,19 @@ export function renderChart({
     zoomLayer.append(group);
   }
 
-  const positions = plotted.map((model) => ({
-    model,
-    px: x.map(model[xMetric.key]),
-    py: y.map(model[yMetric.key]),
-    ranked: tierOf.has(model.id),
-    match: Boolean(matches && matches.has(model.id)),
-  }));
+  // `ranked` follows the presentation, not the data: a demoted tier's marks
+  // are grey, so labels price covering them as cloud and searches do not
+  // single them out as front members.
+  const positions = plotted.map((model) => {
+    const tier = tierOf.get(model.id);
+    return {
+      model,
+      px: x.map(model[xMetric.key]),
+      py: y.map(model[yMetric.key]),
+      ranked: tier !== undefined && showsLine(tier),
+      match: Boolean(matches && matches.has(model.id)),
+    };
+  });
 
   // Zoomed, whatever the window pushed off the plot is clipped out of the
   // pixels, so it must not be nameable or hoverable either.
@@ -741,7 +752,7 @@ export function renderChart({
   const visibleIds = new Set(visiblePositions.map((p) => p.model.id));
   const bestFrontTargets = () => {
     const topTier = fronts.findIndex(
-      (front, index) => shows(index) && front.some((model) => visibleIds.has(model.id)),
+      (front, index) => showsLine(index) && front.some((model) => visibleIds.has(model.id)),
     );
     if (topTier === -1) return [];
     const targets = visiblePositions.filter((p) => tierOf.get(p.model.id) === topTier);

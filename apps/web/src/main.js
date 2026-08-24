@@ -158,6 +158,8 @@ function visibleFrontLines() {
   return state.frontLines.size === TIERS.length ? null : state.frontLines;
 }
 
+const frontLineShown = (index) => state.frontLines.has(index);
+
 // The shortened label counts too: what the plot spells out is what a reader
 // types back into the box, and it is not always the real name.
 const hits = (model, query) =>
@@ -185,7 +187,12 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
     const count = document.createElement('span');
     count.className = 'count';
     count.textContent = `${fronts[index]?.length ?? 0}`;
-    item.append(dot(tierColor(index)), label, count);
+    // The legend decodes the colours on the plot, so a tier demoted by the
+    // front-lines picker shows the grey its marks actually wear — a medal
+    // swatch next to grey points would be the legend lying.
+    const demoted = tierShown(index) && !frontLineShown(index);
+    if (demoted) item.title = 'Front line off — drawn with the dominated cloud';
+    item.append(dot(demoted ? 'var(--rest-mark)' : tierColor(index)), label, count);
     dom.legend.append(item);
   });
 
