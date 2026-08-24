@@ -5,6 +5,12 @@ coding agents. Entries use the local completion date, newest first. Every entry 
 this file intentionally has no change-type subsections. Merge commits are not listed separately
 because the evolution they integrate appears once under its work commit.
 
+## 2026-08-24
+
+- Rewrote the page header: the title is now "The AI Pareto Frontier", the subtitle says what the
+  site is for in one line instead of explaining the plotting rules, and the X bot is presented as a
+  call to action rather than a footnote.
+
 ## 2026-08-15
 
 - Synchronized model and creator filters with the visible chart: the initial model checks now match
