@@ -1,4 +1,10 @@
-import { dataSourceMode, fetchModels, fetchUsage } from './api.js';
+import {
+  dataSourceMode,
+  fetchModels,
+  fetchUsage,
+  requestRefresh,
+  serverAllowsRefresh,
+} from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
 import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
@@ -34,6 +40,10 @@ const dom = {
   viewChart: document.getElementById('view-chart'),
   viewTable: document.getElementById('view-table'),
   usage: document.getElementById('usage'),
+  refresh: document.getElementById('refresh'),
+  tokenForm: document.getElementById('token-form'),
+  tokenInput: document.getElementById('refresh-token'),
+  tokenCancel: document.getElementById('token-cancel'),
   controls: document.getElementById('controls'),
   filtersToggle: document.getElementById('filters-toggle'),
   chartCard: document.getElementById('chart-card'),
@@ -738,6 +748,16 @@ function bindControls() {
     setFiltersOpen(!dom.controls.classList.contains('is-open')),
   );
   dom.usage.addEventListener('click', showUsage);
+  dom.refresh.addEventListener('click', startRefresh);
+  dom.tokenForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const token = dom.tokenInput.value.trim();
+    if (token) refreshData(token);
+  });
+  dom.tokenCancel.addEventListener('click', () => {
+    dom.tokenForm.hidden = true;
+    dom.quota.hidden = true;
+  });
 
   // Close a dropdown when clicking outside it.
   document.addEventListener('click', (event) => {
@@ -816,39 +836,153 @@ async function showUsage() {
   }
 }
 
+function applyPayload(payload) {
+  state.models = payload.models;
+  state.modelById = new Map(payload.models.map((model) => [model.id, model]));
+  dom.meta.classList.remove('is-error');
+  dom.meta.textContent = describe(payload);
+
+  const context = defaultParetoContext(
+    payload.models,
+    currentObjectives(),
+    TIERS.length,
+    RUNNER_LIMIT,
+  );
+  state.modelIds = context.modelIds;
+  state.availableDominatedCount = context.dominatedCount;
+  state.selectionEdited = false;
+
+  // Rebuilt rather than kept: a refresh can bring models that were not in the
+  // list, and a picker that cannot offer them would hide the new arrivals the
+  // refresh was for. Both fills replace their rows, so this stays idempotent.
+  fillCreatorList(payload.models);
+  fillModelList(payload.models);
+  // The rows come back visible, so any query typed into a picker has to be
+  // applied again — its own handler is the one place that knows how.
+  dom.creatorFilter.dispatchEvent(new Event('input'));
+  dom.modelFilter.dispatchEvent(new Event('input'));
+  syncModelChecks();
+  syncCreatorChecks();
+  render();
+}
+
 /** The collector refreshes upstream on its own schedule; the page just reads it. */
 async function load() {
   // Hold the previous render at reduced opacity rather than flashing a skeleton.
   dom.chartCard.classList.add('is-loading');
 
   try {
-    const payload = await fetchModels();
-    state.models = payload.models;
-    state.modelById = new Map(payload.models.map((model) => [model.id, model]));
-    dom.meta.classList.remove('is-error');
-    dom.meta.textContent = describe(payload);
-
-    const context = defaultParetoContext(
-      payload.models,
-      currentObjectives(),
-      TIERS.length,
-      RUNNER_LIMIT,
-    );
-    state.modelIds = context.modelIds;
-    state.availableDominatedCount = context.dominatedCount;
-    state.selectionEdited = false;
-
-    if (!dom.creatorList.children.length) fillCreatorList(payload.models);
-    if (!dom.modelList.children.length) fillModelList(payload.models);
-    syncModelChecks();
-    syncCreatorChecks();
-    render();
+    applyPayload(await fetchModels());
   } catch (err) {
     dom.meta.classList.add('is-error');
     dom.meta.textContent = err.message;
   } finally {
     dom.chartCard.classList.remove('is-loading');
   }
+}
+
+// ── manual refresh (local development only) ──────────────────────────────────
+
+/**
+ * Per tab, and never in `localStorage`: the token is only good for the run of
+ * the server that printed it, so outliving the tab would only ever mean
+ * offering a stale one.
+ */
+const TOKEN_KEY = 'aa-refresh-token';
+
+const storedToken = () => {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null; // Private modes can refuse storage; asking again is the fallback.
+  }
+};
+
+function rememberToken(token) {
+  try {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // Not fatal: the token is held for this refresh either way.
+  }
+}
+
+function forgetToken() {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing to undo.
+  }
+}
+
+function say(message, isError = false) {
+  dom.quota.hidden = false;
+  dom.quota.classList.toggle('is-error', isError);
+  dom.quota.textContent = message;
+}
+
+function askForToken(message) {
+  dom.tokenForm.hidden = false;
+  dom.tokenInput.value = '';
+  say(message);
+  dom.tokenInput.focus();
+}
+
+/**
+ * The only path in the page that spends upstream quota. One click is four of
+ * the hundred requests in the daily window, so nothing here retries on its
+ * own: a failure reports and stops.
+ */
+async function refreshData(token) {
+  dom.refresh.disabled = true;
+  dom.chartCard.classList.add('is-loading');
+  say('Refreshing from upstream — this spends four requests of the daily quota.');
+
+  try {
+    const payload = await requestRefresh(token);
+    // The token was good even if the fetch behind it was not, so it is worth
+    // keeping either way.
+    rememberToken(token);
+    dom.tokenForm.hidden = true;
+
+    // A failed upstream call still answers 200 with the cached copy, so that a
+    // refresh cannot lose the data. Saying "refreshed" to that would be a
+    // plain lie, and re-rendering would reset the reader's filters for
+    // nothing: report it and leave the chart alone.
+    if (payload.warning) {
+      say(`Refresh failed: ${payload.warning}. Still showing the cached data.`, true);
+      return;
+    }
+
+    applyPayload(payload);
+    const remaining = payload.rateLimit?.remaining;
+    say(
+      remaining === null || remaining === undefined
+        ? `Refreshed: ${payload.count} models.`
+        : `Refreshed: ${payload.count} models · ${remaining} of ${payload.rateLimit.limit} requests left.`,
+    );
+  } catch (err) {
+    // A rejected token is the one failure worth asking about again; anything
+    // else is the server or the upstream, and re-prompting would not help.
+    if (/token/i.test(err.message)) {
+      forgetToken();
+      askForToken(err.message);
+    } else {
+      dom.tokenForm.hidden = true;
+      say(err.message, true);
+    }
+  } finally {
+    dom.refresh.disabled = false;
+    dom.chartCard.classList.remove('is-loading');
+  }
+}
+
+function startRefresh() {
+  const token = storedToken();
+  if (token) {
+    refreshData(token);
+    return;
+  }
+  askForToken('Paste the refresh token printed in the server console.');
 }
 
 /**
@@ -888,5 +1022,13 @@ try {
 } catch {
   // load() renders configuration errors in the existing status region.
 }
+// Hidden until the local server says it was started with refresh on. Hiding
+// the button is presentation, not protection: the route itself refuses
+// anything that is not a loopback, same-origin POST carrying the token from
+// that server's console.
+dom.refresh.hidden = true;
+serverAllowsRefresh().then((allowed) => {
+  dom.refresh.hidden = !allowed;
+});
 setView('chart');
 load();

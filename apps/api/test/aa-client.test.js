@@ -90,3 +90,38 @@ test('fetchModels exposes upstream failures instead of returning stale cached da
     },
   );
 });
+
+test('getCachedModels serves an expired cache instead of spending a request on it', async () => {
+  let upstreamCalls = 0;
+  const fetchImpl = async () => {
+    upstreamCalls += 1;
+    return Response.json({ data: [rawModel('fresh')], pagination: { has_more: false } });
+  };
+
+  await withClient(fetchImpl, async (client) => {
+    // One deliberate fetch to populate the cache, then age it past the TTL.
+    await client.getModels({ force: true });
+    client.now = () => new Date('2026-08-15T12:00:00.000Z');
+    const original = Date.now;
+    Date.now = () => Date.parse('2026-08-15T12:00:00.000Z');
+
+    try {
+      const result = await client.getCachedModels();
+      assert.equal(upstreamCalls, 1, 'reading the cache must not call upstream');
+      assert.equal(result.cache, 'stale');
+      assert.equal(result.stale, true);
+      assert.equal(result.models.length, 1);
+    } finally {
+      Date.now = original;
+    }
+  });
+});
+
+test('getCachedModels says what to do when there is no cache at all', async () => {
+  await withClient(
+    async () => assert.fail('no upstream call should be made'),
+    async (client) => {
+      await assert.rejects(() => client.getCachedModels(), /Refresh once/);
+    },
+  );
+});

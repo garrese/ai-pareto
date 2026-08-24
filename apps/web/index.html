@@ -14,22 +14,20 @@
   <body>
     <main class="page">
       <header class="page-header">
-        <h1>Language model Pareto fronts</h1>
-        <p class="subtitle">
-          The first three Pareto fronts over Artificial Analysis text-model data. Each front is the
-          set of models nothing else beats on both axes at once. Behind them sit the 30 models
-          closest to making a front; the rest of the field is left off so the plot stays legible.
-        </p>
+        <h1>The AI Pareto Frontier</h1>
+        <p class="subtitle">Compare language models by price per intelligence.</p>
         <!-- High in the page on purpose: the bot and the source are the two places
              a reader goes next, and at footnote size nobody ever saw them. -->
         <p class="header-links">
           <a class="header-link" href="https://x.com/AIParetoRadar" rel="noreferrer noopener"
-            >@AIParetoRadar on X</a
+            >Follow @AIParetoRadar on X</a
           >
           <a class="header-link" href="https://github.com/garrese/ai-pareto" rel="noreferrer noopener"
             >Source on GitHub</a
           >
-          <span class="header-links-note">The bot posts whenever a Pareto front changes.</span>
+          <span class="header-links-note"
+            >Get an alert the moment a new model breaks the frontier.</span
+          >
         </p>
       </header>
 
@@ -150,10 +148,22 @@
           <span>Relevant model names</span>
         </label>
 
+        <!-- Both are local-development controls and are hidden on the hosted
+             build, which reads a published snapshot and has no upstream. -->
         <div class="control control-actions">
+          <button type="button" id="refresh">Refresh data</button>
           <button type="button" id="usage">API quota</button>
         </div>
       </div>
+
+      <!-- The token is never served to the page: it is printed in the server
+           console and pasted here, so reading the markup buys nothing. -->
+      <form class="token-form" id="token-form" hidden>
+        <label for="refresh-token">Refresh token from the server console</label>
+        <input type="text" id="refresh-token" autocomplete="off" spellcheck="false" />
+        <button type="submit">Refresh</button>
+        <button type="button" id="token-cancel">Cancel</button>
+      </form>
 
       <p class="quota" id="quota" role="status" hidden></p>
 

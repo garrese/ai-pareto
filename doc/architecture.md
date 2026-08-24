@@ -217,8 +217,16 @@ initial production interval is therefore every four hours. This uses six complet
 requests) in a 24-hour window and leaves substantial capacity for failures and manual executions.
 
 The collector uses the upstream rate-limit headers to avoid starting a refresh that cannot complete.
+The last reading and the page count of the last successful walk are kept on the refresh-state
+document and carried across a claim, so a retry of an execution that died mid-refresh can still see
+them. When what is left will not cover a full walk, the pass is deferred: it logs
+`collector.refresh.deferred`, hands the lease back, and spends nothing. A reading whose window has
+already reset never defers a pass.
+
 Retries must resume or abandon the current refresh without silently performing a second complete
-fetch.
+fetch. The recovery actions honour that — `resume` and `drain` publish without refetching, and are
+never gated on quota because they make no upstream request. The remaining exposure is a failure
+between the fetch and `prepareSnapshot`: the snapshot is not yet recorded, so the retry refetches.
 
 ## Security and access control
 

@@ -5,6 +5,29 @@ coding agents. Entries use the local completion date, newest first. Every entry 
 this file intentionally has no change-type subsections. Merge commits are not listed separately
 because the evolution they integrate appears once under its work commit.
 
+## 2026-08-24
+
+- Rewrote the page header: the title is now "The AI Pareto Frontier", the subtitle says what the
+  site is for in one line instead of explaining the plotting rules, and the X bot is presented as a
+  call to action rather than a footnote.
+- Stopped the local server from ever fetching upstream on its own. It serves the cache whatever its
+  age, so opening the page costs nothing; `cache.ttl.minutes` now only decides when data is labelled
+  stale. The cloud collector already spends 24 of the 100 daily requests and the two share one key,
+  so an expiring TTL was spending four more on whoever opened the page first.
+- Added a "Refresh data" button as the only way to spend quota from the page, off in the hosted
+  build. The route behind it is gated rather than just hidden: disabled unless
+  `refresh.manual.enabled=true`, loopback only, POST only, same-origin only, and it needs a per-run
+  token that is printed to the server console and never served over HTTP, so reading the page or
+  poking the DOM does not grant it. Concurrent clicks collapse into one upstream walk.
+- Fixed the page claiming a successful refresh when the upstream call had failed and the server had
+  fallen back to cached data.
+- Stopped either refresh path from starting a walk the remaining quota cannot finish. The collector
+  had no such check despite the architecture document describing one, so with three requests left it
+  would spend them and still produce no snapshot. It now defers the pass, logs why, and hands its
+  lease back; the local button answers 429 with the same reason. The decision is sized by the page
+  count the last successful walk really needed, because a constant would be wrong the moment the
+  dataset passes 800 models.
+
 ## 2026-08-15
 
 - Synchronized model and creator filters with the visible chart: the initial model checks now match

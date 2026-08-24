@@ -228,6 +228,8 @@ body {
 .toggle,
 .filters-toggle,
 #usage,
+#refresh,
+.token-form button,
 .picker-actions button {
   padding: 7px 14px;
   font: inherit;
@@ -246,14 +248,53 @@ body {
 }
 
 .filters-toggle,
-#usage {
+#usage,
+#refresh,
+.token-form button {
   color: var(--text-primary);
   border: 1px solid var(--hairline);
 }
 
-#usage:disabled {
+#usage:disabled,
+#refresh:disabled,
+.token-form button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Local development only: pasting the token the server printed. */
+
+/* `display: flex` below beats the `hidden` attribute's UA rule, so the form
+   would sit open on every page load without this — the same trap as
+   `.picker-row`. */
+.token-form[hidden] {
+  display: none;
+}
+
+.token-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+
+.token-form input {
+  flex: 1;
+  min-width: 180px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--page-plane);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
 }
 
 /* ── Tier, creator and model pickers ─────────────────────────────────────── */

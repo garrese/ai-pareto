@@ -76,11 +76,57 @@ export function dataSourceMode() {
   return resolveDataSource().mode;
 }
 
-export async function fetchModels({ refresh = false } = {}) {
+/**
+ * Always a read. Nothing the page does on its own may spend upstream quota, so
+ * there is deliberately no parameter here that would make this fetch fresh
+ * data — that is `requestRefresh`, and only a click reaches it.
+ */
+export async function fetchModels() {
   const source = resolveDataSource();
   if (source.mode === 'snapshot') return fetchSnapshot(source.root);
-  return requestJson(`${source.root}/api/models${refresh ? '?refresh=1' : ''}`, {
+  return requestJson(`${source.root}/api/models`, {
     context: source.root || currentLocation().origin,
+  });
+}
+
+/**
+ * Whether to offer manual refresh at all. Only the page the local server
+ * serves itself qualifies: an empty root means same-origin requests, which is
+ * what the server's refresh route requires. A hosted build reads a published
+ * snapshot and has no upstream to refresh; a page opened straight off disk, or
+ * pointed elsewhere with `?api=`, is cross-origin to the server and would be
+ * refused there.
+ */
+export function manualRefreshAvailable() {
+  const source = resolveDataSource();
+  return source.mode === 'api' && source.root === '';
+}
+
+/**
+ * Whether this server was started with manual refresh on. Asked so the page
+ * does not offer a button that would only ever answer 404, and answered only
+ * to a loopback client.
+ */
+export async function serverAllowsRefresh() {
+  if (!manualRefreshAvailable()) return false;
+  try {
+    const payload = await requestJson('/api/health', { context: currentLocation().origin });
+    return payload.manualRefresh === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function requestRefresh(token) {
+  if (!manualRefreshAvailable()) {
+    throw new Error('Manual refresh is only available on the local development server');
+  }
+  return requestJson('/api/refresh', {
+    method: 'POST',
+    // A header this custom cannot ride along on a cross-site request without a
+    // preflight, which the server does not grant.
+    headers: { 'x-refresh-token': token },
+    context: currentLocation().origin,
   });
 }
 
@@ -159,10 +205,11 @@ function validateModelsDocument(document, manifest) {
   }
 }
 
-async function requestJson(url, { cache, context } = {}) {
+async function requestJson(url, { cache, context, method, headers } = {}) {
   let response;
   try {
-    response = await fetch(url, cache ? { cache } : undefined);
+    const options = { ...(cache ? { cache } : {}), ...(method ? { method } : {}), ...(headers ? { headers } : {}) };
+    response = await fetch(url, Object.keys(options).length ? options : undefined);
   } catch {
     throw new Error(`Cannot reach data at ${context ?? url}`);
   }

@@ -52,14 +52,16 @@ npm test
 | `aa.api.path` | `/language/models/free` | Endpoint path. |
 | `aa.api.daily.limit` | `100` | Fallback quota label, used only until the real headers are seen. |
 | `server.port` | `8787` | Local listen port. |
-| `cache.ttl.minutes` | `360` | How long a cached response stays fresh. |
+| `cache.ttl.minutes` | `360` | The age at which cached data is labelled stale. Does not trigger a refetch. |
+| `refresh.manual.enabled` | `false` | Whether `POST /api/refresh` exists at all. |
 
 ## Endpoints
 
 | Route | Returns |
 | --- | --- |
-| `GET /api/health` | `{ ok: true }` |
-| `GET /api/models` | Normalized model list plus cache metadata. `?refresh=1` forces a refetch. |
+| `GET /api/health` | `{ ok: true, manualRefresh: boolean }` — whether the page should offer its refresh button. |
+| `GET /api/models` | Normalized model list plus cache metadata. Reads the cache; never refetches. |
+| `POST /api/refresh` | The only route that spends upstream quota. Gated — see below. |
 | `GET /api/usage` | Last known quota snapshot. Costs no upstream request. |
 | `GET /*` | Static files from `apps/web`. |
 
@@ -103,6 +105,37 @@ four today. Two files, both git-ignored:
 Being plain files, both survive a restart: bringing the server back up costs no quota. If a refresh
 fails, the cached copy is served with `stale: true` and `warning` set, rather than dropping the
 dataset.
+
+**The local server never fetches on its own.** `GET /api/models` reads the cache whatever its age;
+an expired `cache.ttl.minutes` only makes it say `stale`. Serving the page therefore costs nothing,
+which matters because the cloud collector spends 24 of the 100 daily requests on its own schedule
+and the two share one key.
+
+### Manual refresh
+
+`POST /api/refresh` is the only route that reaches upstream. Because one click costs four requests,
+it is fenced in rather than merely hidden in the page:
+
+- It does not exist unless the server was started with `refresh.manual.enabled=true`; otherwise it
+  answers `404`, the same as any unknown route.
+- It is refused for any client that is not on the loopback interface.
+- It requires `POST`, so no link, redirect, image or typed URL can trigger it.
+- It requires `Sec-Fetch-Site: same-origin`, so only the page this server serves may call it. A page
+  opened straight off disk over `file://` is cross-origin and is refused too.
+- It requires the run's token in an `x-refresh-token` header. The token is minted per run, printed
+  to the server console, and **never served over HTTP** — reading the markup, the scripts or the DOM
+  does not get you one. The page asks you to paste it once and keeps it in `sessionStorage`.
+- Concurrent calls collapse into one upstream walk, so a double click still costs four requests.
+
+The custom header is load-bearing beyond the token itself: a cross-origin request carrying it needs
+a preflight, and the `OPTIONS` handler advertises neither `POST` nor that header.
+
+A refresh is also refused when the window cannot fit it. `src/quota.js` compares the last observed
+`X-RateLimit-Remaining` against the number of pages the previous walk actually needed, and answers
+`429` rather than spending what is left on a walk that would die on its last page. It is deliberately
+generous about missing information — no reading yet, no rate-limit headers, or a window that has
+since reset all count as "go ahead" — because the guard exists to stop a refresh that is known to be
+doomed, not one that merely cannot be proven safe.
 
 ## Collector core
 
