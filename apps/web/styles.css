@@ -186,15 +186,19 @@ body {
   display: none;
 }
 
-/* ── Controls: one row above everything they scope ───────────────────────── */
+/* ── Controls: a labelled rail of rows above everything they scope ───────── */
 
+/* One row per purpose, its name in a left rail: "Filter models" changes which
+   models are plotted, "Overlays" only what is drawn on top. The rail and the
+   inline control labels keep every row to a single tier of text — group
+   captions floating above a second deck of labels read as clutter. */
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 20px;
   margin: 12px 0 16px;
-  padding: 16px;
+  padding: 12px 16px;
   background: var(--surface-1);
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -202,8 +206,8 @@ body {
 
 .control {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
@@ -220,19 +224,23 @@ body {
   border-radius: 7px;
 }
 
+/* The rail is this row's label, so the box takes the width instead. */
+.control-search {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+
 .control-search input {
-  min-width: 208px;
+  width: 100%;
+  min-width: 0;
 }
 
 .control-check {
-  flex-direction: row;
-  align-items: center;
   gap: 8px;
   min-height: 36px;
 }
 
 .control-view {
-  flex-direction: row;
   gap: 4px;
   padding: 3px;
   background: var(--page-plane);
@@ -241,17 +249,8 @@ body {
 }
 
 .control-actions {
-  flex-direction: row;
   gap: 8px;
   margin-left: auto;
-}
-
-/* Labelled groups keep the two kinds of control visibly apart: "Filter models"
-   changes which models are plotted, "Overlays" only what is drawn on top. */
-.control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .control-group-label {
@@ -265,8 +264,9 @@ body {
 .control-group-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 10px 18px;
+  min-width: 0;
 }
 
 .toggle,
@@ -966,12 +966,14 @@ body {
   }
 
   /* Folded away by default: a phone should open on the data, not on the
-     filters. `is-open` is set by the toggle above. */
+     filters. `is-open` is set by the toggle above. The rail cannot afford a
+     column of its own here, so its labels become section lines and each row
+     goes back to the two-column rhythm with labels above the widgets. */
   .controls {
     display: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: end;
-    gap: 10px 8px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
     margin: 8px 0 10px;
     padding: 10px;
     border-radius: 8px;
@@ -981,16 +983,20 @@ body {
     display: grid;
   }
 
-  .control {
+  .controls .control {
+    flex-direction: column;
+    align-items: stretch;
     min-width: 0;
     gap: 4px;
   }
 
-  /* The groups keep their labels but hand the two-column rhythm back to the
-     grid, so the folded panel stays as short as it was. */
-  .control-group {
-    grid-column: 1 / -1;
-    gap: 4px;
+  .controls .control-check {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .control-group-label {
+    margin-top: 4px;
   }
 
   .control-group-row {
@@ -1010,6 +1016,7 @@ body {
   .control-search,
   .control-actions {
     grid-column: 1 / -1;
+    max-width: none;
   }
 
   .control-view,
@@ -1022,7 +1029,8 @@ body {
     flex: 1;
   }
 
-  .control-actions {
+  .controls .control-actions {
+    flex-direction: row;
     margin-left: 0;
   }
 
@@ -1169,11 +1177,12 @@ body {
     display: block;
   }
 
-  /* Vertical space is the scarce one here, so the filters fold away as well. */
+  /* Vertical space is the scarce one here, so the filters fold away as well,
+     and the rail's labels become section lines over four-column rows. */
   .controls {
     display: none;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
     gap: 6px;
     margin: 8px 0;
     padding: 8px;
@@ -1183,16 +1192,16 @@ body {
     display: grid;
   }
 
-  .control,
-  .control-search,
-  .control-actions {
+  .controls .control {
+    flex-direction: column;
+    align-items: stretch;
     min-width: 0;
-    grid-column: auto;
+    gap: 4px;
   }
 
-  .control-group {
-    grid-column: 1 / -1;
-    gap: 4px;
+  .controls .control-check {
+    flex-direction: row;
+    align-items: center;
   }
 
   .control-group-row {
@@ -1200,6 +1209,11 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: end;
     gap: 6px;
+  }
+
+  .control-search {
+    grid-column: span 2;
+    max-width: none;
   }
 
   .control select,
@@ -1221,7 +1235,9 @@ body {
     padding-inline: 5px;
   }
 
-  .control-actions {
+  .controls .control-actions {
+    flex-direction: row;
+    grid-column: span 2;
     margin-left: 0;
   }
 
