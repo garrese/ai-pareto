@@ -6,6 +6,7 @@ import {
   serverAllowsRefresh,
 } from './api.js';
 import { METRICS, TIERS, objectiveFor } from './metrics.js';
+import { withShortNames } from './names.js';
 import { paretoFronts } from './pareto.js';
 import { renderChart } from './chart.js';
 import { creatorSelectionStates, defaultParetoContext } from './selection.js';
@@ -49,6 +50,7 @@ const dom = {
   chartCard: document.getElementById('chart-card'),
   tableCard: document.getElementById('table-card'),
   chart: document.getElementById('chart'),
+  chartNote: document.getElementById('chart-note'),
   legend: document.getElementById('legend'),
   tooltip: document.getElementById('tooltip'),
   tableBody: document.getElementById('table-body'),
@@ -129,8 +131,11 @@ const tierShown = (tier) => {
   return !visible || visible.has(tier);
 };
 
+// The shortened label counts too: what the plot spells out is what a reader
+// types back into the box, and it is not always the real name.
 const hits = (model, query) =>
   model.name.toLowerCase().includes(query) ||
+  (model.shortName ?? '').toLowerCase().includes(query) ||
   (model.creator ?? '').toLowerCase().includes(query);
 
 /** Ids whose name or creator contains the query, or null when the box is empty. */
@@ -335,7 +340,7 @@ function render() {
     state.availableDominatedCount,
     matches ? matches.size : null,
   );
-  renderChart({
+  const shortened = renderChart({
     container: dom.chart,
     models: shown,
     fronts: state.fronts,
@@ -346,6 +351,15 @@ function render() {
     showLabels: dom.showLabels.checked,
     onHover: renderTooltip,
   });
+
+  // Only when the reader can actually see one. A standing footnote about names
+  // that are not on screen is noise on every other view.
+  dom.chartNote.hidden = shortened === 0;
+  dom.chartNote.textContent =
+    shortened === 1
+      ? 'One name on the plot is shortened — click its point for the full one.'
+      : `${shortened} names on the plot are shortened — click a point for the full one.`;
+
   renderTable(state.fronts, rest, matches);
 }
 
@@ -837,17 +851,17 @@ async function showUsage() {
 }
 
 function applyPayload(payload) {
-  state.models = payload.models;
-  state.modelById = new Map(payload.models.map((model) => [model.id, model]));
+  // Once per load, never per render: the chart redraws on every filter and
+  // every resize, and the letters are computed over the whole dataset anyway so
+  // that filtering cannot move them.
+  const models = withShortNames(payload.models);
+
+  state.models = models;
+  state.modelById = new Map(models.map((model) => [model.id, model]));
   dom.meta.classList.remove('is-error');
   dom.meta.textContent = describe(payload);
 
-  const context = defaultParetoContext(
-    payload.models,
-    currentObjectives(),
-    TIERS.length,
-    RUNNER_LIMIT,
-  );
+  const context = defaultParetoContext(models, currentObjectives(), TIERS.length, RUNNER_LIMIT);
   state.modelIds = context.modelIds;
   state.availableDominatedCount = context.dominatedCount;
   state.selectionEdited = false;
@@ -855,8 +869,8 @@ function applyPayload(payload) {
   // Rebuilt rather than kept: a refresh can bring models that were not in the
   // list, and a picker that cannot offer them would hide the new arrivals the
   // refresh was for. Both fills replace their rows, so this stays idempotent.
-  fillCreatorList(payload.models);
-  fillModelList(payload.models);
+  fillCreatorList(models);
+  fillModelList(models);
   // The rows come back visible, so any query typed into a picker has to be
   // applied again — its own handler is the one place that knows how.
   dom.creatorFilter.dispatchEvent(new Event('input'));

@@ -194,6 +194,30 @@ Consequences that are load-bearing:
 
 Added 2026-08-15, modelled on how Artificial Analysis labels its own charts.
 
+**A label is the short name, not the real one.** Upstream names carry their configuration in a
+parenthesis and some are unusable on a plot — "Claude Fable 5 (Adaptive Reasoning, Max Effort, Opus
+4.8 Fallback)" is 66 characters, roughly a third of the plot's width. `names.js` adds a `shortName`
+to every model: models are grouped by everything before their first parenthesis, a family with one
+member simply loses its parenthesis, and a family with several has every member's parenthesis
+replaced by a letter — `Claude Opus 5 (a)` … `(e)` — assigned by **ascending intelligence**, with
+unmeasured models taking the last letters rather than the first. `name` itself is never replaced:
+the card, the table and the pickers all keep showing the real thing, and the search box matches
+both, because a reader types back what the plot spelled out.
+
+Letters rather than salvaged words was decided with the user on 2026-08-24, after both were
+measured. Families mix short suffixes with long ones — `GPT-5.6 Terra` has `(low)` next to
+`(Non-reasoning)` — so keeping the short ones would make the shorthand mean two different things
+inside one family. Consecutive letters read as "several reasoning levels" and that is enough.
+
+Two consequences hold this together and should not be dropped. The letters are computed over the
+**whole dataset, once per load**, not over what is drawn (0.5ms for 616 models): a letter that moved
+when you filtered would be worse than no letter. And the chart **counts the shortened labels it
+actually placed** and returns that number, so the footnote under the plot appears only when the
+reader can see one — a standing disclaimer on every other view is noise.
+
+Shorter labels bought coverage outright: 1280px now names **17 of 17** gold models, against 15
+before, and a 375px phone names 14 where it used to fit almost none.
+
 - **Idle, the best front on show is named** — gold normally, silver if gold is filtered out, and so
   on. The dominated cloud is never named; there are hundreds of it. **Searching, the matches take
   the labels instead**, whatever tier they are in, so the answer to the query is the only thing
@@ -244,6 +268,7 @@ else gives them up.
 - The **filters fold away** behind a "Show filters" button below 720px and on short landscape
   screens, so a phone opens on data. The **chart/table switch stays outside the fold** — it is the
   one control that must always be one tap away.
+- The **card is the only place the untruncated name exists**, so it is width-capped and wraps.
 - **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
   Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
   title, because a spelled-out heading widens a column past anything its values ever hold.

@@ -1,3 +1,4 @@
+import { chartLabel, isShortened } from './names.js';
 import { frontPath } from './pareto.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -267,9 +268,10 @@ function leaderFor(target, box) {
  * @param {any[]} options.targets    positions to name, most important first
  * @param {any[]} options.obstacles  every plotted position, labelled or not
  * @param {any[]} options.segments   the drawn front lines, in chart coordinates
+ * @returns {number} how many of the labels it placed hide part of a name
  */
 function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
-  if (targets.length === 0) return;
+  if (targets.length === 0) return 0;
 
   const group = el('g', { class: 'mark-label' });
   svg.append(group);
@@ -277,15 +279,17 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
   const rings = compact ? COMPACT_LABEL_RINGS : LABEL_RINGS;
   const reach = rings[rings.length - 1];
   const placed = [];
+  let shortened = 0;
 
   for (const target of targets) {
+    const label = chartLabel(target.model);
     const text = el('text', { 'text-anchor': 'middle' });
-    text.textContent = target.model.name;
+    text.textContent = label;
     group.append(text);
 
     // getComputedTextLength needs a laid-out subtree; a hidden card gives 0.
     const measured = text.getComputedTextLength?.() ?? 0;
-    const width = measured || target.model.name.length * LABEL_CHAR_WIDTH;
+    const width = measured || label.length * LABEL_CHAR_WIDTH;
 
     // Only what could plausibly fall under this label is worth testing.
     const span = width + reach;
@@ -331,6 +335,7 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
     }
 
     placed.push(best.grown);
+    if (isShortened(target.model)) shortened += 1;
     text.setAttribute('x', best.box.cx);
     // 11px glyphs are ~8px tall, so this sits the ink on the box's centre line.
     text.setAttribute('y', best.box.cy + 4);
@@ -340,6 +345,8 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
     // halo has to cut the line where it meets the text.
     if (best.leader) group.insertBefore(el('line', best.leader), group.firstChild);
   }
+
+  return shortened;
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
@@ -360,6 +367,7 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
  * @param {Set<number|'rest'>|null} options.visibleTiers  tiers to draw, or null for all
  * @param {boolean} options.showLabels  whether models are named on the plot
  * @param {(model: any, tierIndex: number|null, event: MouseEvent|null) => void} options.onHover
+ * @returns {number} how many drawn labels are shortened, so the caller can say so
  */
 export function renderChart({
   container,
@@ -391,7 +399,7 @@ export function renderChart({
     empty.className = 'chart-empty';
     empty.textContent = 'Nothing to plot — every model is filtered out or missing one of the metrics.';
     container.append(empty);
-    return;
+    return 0;
   }
 
   const yTitle = document.createElement('div');
@@ -624,7 +632,7 @@ export function renderChart({
       labelled.sort((a, b) => priority.get(b.model.id) - priority.get(a.model.id) || a.px - b.px);
     }
   }
-  drawLabels({
+  const shortened = drawLabels({
     svg,
     targets: labelled.slice(0, LABEL_LIMIT),
     obstacles: positions,
@@ -677,4 +685,6 @@ export function renderChart({
   });
 
   svg.append(surface);
+
+  return shortened;
 }
