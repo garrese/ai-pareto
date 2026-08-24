@@ -55,11 +55,14 @@ If Terraform had to use a non-default public bucket name, update the public `dat
   three fronts and the 30 dominated models closest to joining one; unchecked models are genuinely
   absent. Selecting another eligible model keeps it visible and recomputes the fronts over the new
   set. Models without both selected-axis measurements are disabled rather than falsely checked.
+  Each row also carries the label the chart uses for that model, and the filter box matches it, so a
+  letter read off the plot finds the model it belongs to.
 - **Tiers.** A checkbox list over the three fronts plus "Others (dominated)". This one only decides
   what is *drawn* — the fronts are never recomputed, because peeling gold away would promote silver
   into its place and the tiers would stop meaning anything. Hidden tiers do leave the axes, so the
   plot rescales to what is left, and the legend keeps showing their real counts struck through.
-- **Table view.** The same three fronts as a table, so no value is reachable only by hovering.
+- **Table view.** The same three fronts as a table, so no value is reachable only by hovering. A
+  mini-column beside each name holds the variant letter the chart labels that model with.
 
 The chart is drawn at the container's pixel size and redrawn when that box changes, so it fills a
 wide display instead of topping out at a fixed width. Tick density follows the size.
