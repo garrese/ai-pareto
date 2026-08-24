@@ -35,6 +35,10 @@ resource "google_cloud_run_v2_job" "collector" {
           value = google_storage_bucket.public_data.name
         }
         env {
+          name  = "COLLECTOR_DIAGNOSTICS_BUCKET"
+          value = google_storage_bucket.collector_diagnostics.name
+        }
+        env {
           name  = "PARETO_TOPIC"
           value = google_pubsub_topic.pareto_changes.name
         }
@@ -62,6 +66,7 @@ resource "google_cloud_run_v2_job" "collector" {
     google_pubsub_topic_iam_member.collector_publisher,
     google_secret_manager_secret_iam_member.collector_secret_accessor,
     google_storage_bucket_iam_member.collector_object_admin,
+    google_storage_bucket_iam_member.collector_diagnostics_object_admin,
   ]
 }
 

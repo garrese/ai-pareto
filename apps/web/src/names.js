@@ -13,8 +13,9 @@
  * `(Non-reasoning)` — and lettering only the ones that need it makes the
  * shorthand mean two different things within one family.
  *
- * `name` is never replaced. This adds `shortName` alongside it, and the card,
- * the table and the pickers go on showing the real thing.
+ * `name` is never replaced. This adds `shortName` alongside it, plus the bare
+ * `shortLetter` for the places that only have room for the letter, and the
+ * card, the table and the pickers go on showing the real thing.
  */
 
 /** Everything up to the first parenthesis: the family a variant belongs to. */
@@ -24,18 +25,23 @@ function familyOf(name) {
 }
 
 /**
- * Ascending intelligence, so consecutive letters read as "more capable" — which
- * is the whole reason a reader tolerates them. Models with no measured index
- * sort last rather than first: they would otherwise take `(a)`–`(d)` in a
- * family like Claude Sonnet 5 and leave the two measured variants at the end of
- * the alphabet, where the ordering says nothing at all.
+ * Descending intelligence, so `(a)` is the ablest variant of its family — asked
+ * for on 2026-08-24, replacing the ascending order this shipped with. A reader
+ * hunting the best Claude Opus 5 now looks for one fixed letter instead of
+ * working out how far the alphabet happens to run in that family, which is
+ * something only the picker can tell them. Consecutive letters still read as
+ * "several reasoning levels", just counted down from the top.
+ *
+ * Models with no measured index still sort last rather than first: they would
+ * otherwise take `(a)`–`(d)` in a family like Claude Sonnet 5 and push the two
+ * measured variants down the alphabet, where the ordering says nothing at all.
  */
 function byIntelligence(left, right) {
-  const a = Number.isFinite(left.intelligence) ? left.intelligence : Infinity;
-  const b = Number.isFinite(right.intelligence) ? right.intelligence : Infinity;
+  const a = Number.isFinite(left.intelligence) ? left.intelligence : -Infinity;
+  const b = Number.isFinite(right.intelligence) ? right.intelligence : -Infinity;
   // Both unmeasured compares equal, so the name is what settles it. Some tiebreak
   // has to be deterministic or a reload can move a model's letter.
-  if (a !== b) return a - b;
+  if (a !== b) return b - a;
   return left.name.localeCompare(right.name);
 }
 
@@ -53,9 +59,10 @@ function letterFor(index) {
 }
 
 /**
- * Copies of `models` with a `shortName` added to each. Computed over the whole
- * dataset, once, rather than over what is drawn: a letter that changed as you
- * filtered would be worse than no letter.
+ * Copies of `models` with a `shortName`, and a `shortLetter` where one was
+ * assigned, added to each. Computed over the whole dataset, once, rather than
+ * over what is drawn: a letter that changed as you filtered would be worse than
+ * no letter.
  *
  * @param {any[]} models
  * @returns {any[]}
@@ -70,6 +77,7 @@ export function withShortNames(models) {
   }
 
   const shortNames = new Map();
+  const letters = new Map();
   for (const [family, members] of families) {
     // Alone in its family, the parenthesis distinguishes it from nothing, so it
     // just goes. A model with no parenthesis at all comes through unchanged.
@@ -77,14 +85,19 @@ export function withShortNames(models) {
       shortNames.set(members[0].id, family);
       continue;
     }
-    [...members]
-      .sort(byIntelligence)
-      .forEach((model, index) => shortNames.set(model.id, `${family} (${letterFor(index)})`));
+    [...members].sort(byIntelligence).forEach((model, index) => {
+      const letter = letterFor(index);
+      letters.set(model.id, letter);
+      shortNames.set(model.id, `${family} (${letter})`);
+    });
   }
 
+  // The letter is kept apart from the label it was built into: the table shows
+  // it on its own, in a column the family name would never fit in.
   return models.map((model) => ({
     ...model,
     shortName: shortNames.get(model.id) ?? model.name,
+    shortLetter: letters.get(model.id) ?? null,
   }));
 }
 

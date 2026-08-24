@@ -20,7 +20,7 @@ test('a model with no parenthesis is left alone', () => {
   assert.deepEqual(labels([model('mimo', 'MiMo-V2.5-Pro', 40)]), { mimo: 'MiMo-V2.5-Pro' });
 });
 
-test('a family is lettered by ascending intelligence', () => {
+test('a family is lettered by descending intelligence, ablest first', () => {
   assert.deepEqual(
     labels([
       model('high', 'Claude Opus 5 (Adaptive Reasoning, High Effort)', 61.5),
@@ -28,9 +28,9 @@ test('a family is lettered by ascending intelligence', () => {
       model('max', 'Claude Opus 5 (Adaptive Reasoning, Max Effort)', 63.1),
     ]),
     {
-      low: 'Claude Opus 5 (a)',
+      max: 'Claude Opus 5 (a)',
       high: 'Claude Opus 5 (b)',
-      max: 'Claude Opus 5 (c)',
+      low: 'Claude Opus 5 (c)',
     },
   );
 });
@@ -45,19 +45,19 @@ test('short and long suffixes in one family are lettered alike', () => {
       model('max', 'GPT-5.6 Terra (max)', 56.6),
     ]),
     {
-      none: 'GPT-5.6 Terra (a)',
+      max: 'GPT-5.6 Terra (a)',
       low: 'GPT-5.6 Terra (b)',
-      max: 'GPT-5.6 Terra (c)',
+      none: 'GPT-5.6 Terra (c)',
     },
   );
 });
 
 test('a family member with no parenthesis is lettered with the rest', () => {
-  // Leaving it bare would put `Base` next to `Base (a)`, which reads as if the
+  // Leaving it bare would put `Base` next to `Base (b)`, which reads as if the
   // bare one were the canonical model rather than one more variant.
   assert.deepEqual(
     labels([model('bare', 'Solar Pro 2', 30), model('pro', 'Solar Pro 2 (Reasoning)', 40)]),
-    { bare: 'Solar Pro 2 (a)', pro: 'Solar Pro 2 (b)' },
+    { pro: 'Solar Pro 2 (a)', bare: 'Solar Pro 2 (b)' },
   );
 });
 
@@ -91,10 +91,10 @@ test('letters carry on past the alphabet rather than repeating', () => {
     model(`m${index}`, `Wide Family (variant ${index})`, index),
   );
   const assigned = labels(family);
-  assert.equal(assigned.m0, 'Wide Family (a)');
-  assert.equal(assigned.m25, 'Wide Family (z)');
-  assert.equal(assigned.m26, 'Wide Family (aa)');
-  assert.equal(assigned.m27, 'Wide Family (ab)');
+  assert.equal(assigned.m27, 'Wide Family (a)');
+  assert.equal(assigned.m2, 'Wide Family (z)');
+  assert.equal(assigned.m1, 'Wide Family (aa)');
+  assert.equal(assigned.m0, 'Wide Family (ab)');
   assert.equal(new Set(Object.values(assigned)).size, family.length);
 });
 
@@ -116,7 +116,21 @@ test('isShortened reports only the models whose label hides something', () => {
   ]);
   assert.equal(isShortened(flat), false);
   assert.equal(isShortened(lettered), true);
-  assert.equal(chartLabel(lettered), 'GLM-4.5V (b)');
+  assert.equal(chartLabel(lettered), 'GLM-4.5V (a)');
+});
+
+test('the bare letter is kept alongside the label the table cannot fit', () => {
+  const [lone, low, high] = withShortNames([
+    model('lone', 'MiniMax M3 (Reasoning)', 44),
+    model('low', 'Claude Opus 5 (Adaptive Reasoning, Low Effort)', 52.5),
+    model('high', 'Claude Opus 5 (Adaptive Reasoning, High Effort)', 61.5),
+  ]);
+  // Alone in its family there is no letter to decode: the plot writes the whole
+  // family name, so the column has nothing to point at.
+  assert.equal(lone.shortLetter, null);
+  assert.equal(high.shortLetter, 'a');
+  assert.equal(low.shortLetter, 'b');
+  assert.equal(high.shortName, `Claude Opus 5 (${high.shortLetter})`);
 });
 
 test('chartLabel falls back to the real name when nothing was computed', () => {

@@ -102,3 +102,22 @@ test('JSON objects can be read back for snapshot auditing', async () => {
   assert.equal(new URL(call.url).searchParams.get('alt'), 'media');
   assert.equal(call.options.headers.get('authorization'), 'Bearer test-token');
 });
+
+test('diagnostic uploads are private, uncached and create-only', async () => {
+  let call;
+  const store = new CloudStorageJsonStore({
+    bucketName: 'private-diagnostics',
+    auth,
+    fetchImpl: async (url, options) => {
+      call = { url: String(url), options };
+      return Response.json({ generation: '1' });
+    },
+  });
+
+  await store.putDiagnostic('rejected-refreshes/execution/attempt-0.json', { models: [] });
+
+  const url = new URL(call.url);
+  assert.equal(url.searchParams.get('ifGenerationMatch'), '0');
+  assert.match(call.options.body, /private, no-store, max-age=0/);
+  assert.match(call.options.body, /rejected-refreshes\/execution\/attempt-0\.json/);
+});

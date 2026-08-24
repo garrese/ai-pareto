@@ -2,6 +2,11 @@ import { summarizeModelChanges, summarizeParetoChanges } from './audit.js';
 import { MONITORED_PARETO_FRONTS, TIER_COUNT } from './definitions.js';
 import { publishImmutableObjects, publishManifestObject } from './publication.js';
 import { createSnapshotArtifacts } from './snapshots.js';
+import {
+  duplicateModelDiagnostics,
+  rejectedRefreshDocument,
+  rejectedRefreshPath,
+} from './diagnostics.js';
 import { DEFAULT_PAGES_NEEDED, refreshBudget } from '../quota.js';
 
 const toIso = (value) => {
@@ -167,6 +172,8 @@ export async function runCollector({
   leaseSeconds,
   source,
   storage,
+  diagnosticStore = null,
+  taskAttempt = null,
   state,
   eventBus,
   now = () => new Date(),
@@ -241,8 +248,60 @@ export async function runCollector({
       executionId,
       log,
     });
-    const result = await source.fetchModels();
+    const result = await source.fetchModels({ captureSourcePages: diagnosticStore !== null });
     const generatedAt = toIso(now());
+    const duplicates = duplicateModelDiagnostics(result.models, result.modelOrigins);
+
+    if (duplicates.length > 0) {
+      const diagnosticPath = rejectedRefreshPath({
+        executionId,
+        taskAttempt,
+        fetchedAt: result.fetchedAt,
+      });
+      let archive = { stored: false, bucket: diagnosticStore?.bucketName ?? null, diagnosticPath };
+
+      if (diagnosticStore) {
+        try {
+          await diagnosticStore.putDiagnostic(
+            diagnosticPath,
+            rejectedRefreshDocument({
+              executionId,
+              taskAttempt,
+              capturedAt: generatedAt,
+              result,
+              duplicates,
+            }),
+          );
+          archive = { ...archive, stored: true };
+        } catch (error) {
+          archive = {
+            ...archive,
+            errorName: error.name,
+            errorMessage: error.message,
+          };
+          log('ERROR', 'Rejected refresh diagnostic could not be archived', {
+            event: 'data.refresh.rejected.archive-failed',
+            executionId,
+            taskAttempt,
+            archive,
+          });
+        }
+      }
+
+      log('ERROR', 'Refresh rejected because model IDs are duplicated', {
+        event: 'data.refresh.rejected.duplicate-models',
+        executionId,
+        taskAttempt,
+        fetchedAt: result.fetchedAt,
+        requestCount: result.pages ?? null,
+        rateLimit: result.rateLimit ?? null,
+        duplicateCount: duplicates.length,
+        duplicates,
+        archive,
+      });
+      throw new Error(`Duplicate model ID: ${duplicates[0].id}`);
+    }
+
     artifacts = createSnapshotArtifacts({
       models: result.models,
       fetchedAt: result.fetchedAt,

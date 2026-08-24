@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MANIFEST_CACHE_CONTROL = 'public, max-age=60, must-revalidate';
+const DIAGNOSTIC_CACHE_CONTROL = 'private, no-store, max-age=0';
 
 const serialize = (body) => `${JSON.stringify(body, null, 2)}\n`;
 
@@ -102,6 +103,13 @@ export class CloudStorageJsonStore {
 
   async putManifest(objectPath, body) {
     await this.#upload(objectPath, body, { cacheControl: MANIFEST_CACHE_CONTROL });
+  }
+
+  async putDiagnostic(objectPath, body) {
+    await this.#upload(objectPath, body, {
+      cacheControl: DIAGNOSTIC_CACHE_CONTROL,
+      ifGenerationMatch: 0,
+    });
   }
 
   async getJson(objectPath) {
