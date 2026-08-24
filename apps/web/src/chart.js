@@ -745,17 +745,14 @@ export function renderChart({
 
   // Names -------------------------------------------------------------------
   // The best front on show is named — that row of models is what the page
-  // exists to point at, and the dominated cloud never gets a name because there
-  // are hundreds of it. "On show" includes the zoom window: a window holding
-  // only silver names silver, because a gold front entirely outside it would
-  // otherwise claim the labels and name nothing.
+  // exists to point at. "On show" includes the zoom window and the front-lines
+  // picker both: a window holding only silver names silver, and a demoted tier
+  // is cloud.
   const visibleIds = new Set(visiblePositions.map((p) => p.model.id));
-  const bestFrontTargets = () => {
-    const topTier = fronts.findIndex(
-      (front, index) => showsLine(index) && front.some((model) => visibleIds.has(model.id)),
-    );
-    if (topTier === -1) return [];
-    const targets = visiblePositions.filter((p) => tierOf.get(p.model.id) === topTier);
+
+  /** One front's visible members, most hemmed-in first, its two ends before anyone. */
+  const orderedFrontTargets = (tierIndex) => {
+    const targets = visiblePositions.filter((p) => tierOf.get(p.model.id) === tierIndex);
     if (targets.length === 0) return [];
     const leftmost = Math.min(...targets.map((p) => p.px));
     const rightmost = Math.max(...targets.map((p) => p.px));
@@ -779,6 +776,29 @@ export function renderChart({
       ]),
     );
     targets.sort((a, b) => priority.get(b.model.id) - priority.get(a.model.id) || a.px - b.px);
+    return targets;
+  };
+
+  /**
+   * What deserves a name when no search is up. Unzoomed, the old rule: the
+   * best front still wearing its line and nothing else — one front's names is
+   * what the full plot has room for, and the dominated cloud is never named
+   * because there are hundreds of it. Zoomed, the room the window buys is
+   * spent on names: every front on show is named, best first, and once the
+   * window is sparse enough that everything visible could carry a name, the
+   * cloud joins in too — "hundreds of it" stops being true inside a deep
+   * window (user-approved 2026-08-24). The placer still prices every slot, so
+   * a crowded window degrades to fewer names rather than to a carpet.
+   */
+  const idleTargets = () => {
+    const lined = fronts.map((_, index) => index).filter((index) => showsLine(index));
+    if (!zoomed) {
+      const top = lined.find((index) => fronts[index].some((m) => visibleIds.has(m.id)));
+      return top === undefined ? [] : orderedFrontTargets(top);
+    }
+    const targets = lined.flatMap((index) => orderedFrontTargets(index));
+    const cloud = visiblePositions.filter((p) => !p.ranked).sort((a, b) => a.px - b.px);
+    if (targets.length + cloud.length <= LABEL_LIMIT) targets.push(...cloud);
     return targets;
   };
 
@@ -808,12 +828,12 @@ export function renderChart({
     // names exactly as a desktop does. Screen width already decides whether the
     // checkbox starts on, and making it decide twice would mean a reader who
     // asked for names on a phone loses them the moment they type.
-    const context = bestFrontTargets()
+    const context = idleTargets()
       .filter((p) => !matches.has(p.model.id))
       .map((p) => ({ ...p, dim: true }));
     labelled = [...matched, ...context];
   } else if (showLabels) {
-    labelled = bestFrontTargets();
+    labelled = idleTargets();
   }
   const shortened = drawLabels({
     parent: zoomLayer,

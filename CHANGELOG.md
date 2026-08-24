@@ -7,6 +7,12 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Let the chart's names spend the room a zoom buys. Unzoomed nothing changes: only the best front
+  wearing its line is named. Zoomed, every front on show is named, best first, and once the window
+  is sparse enough that everything visible fits under the label cap, the dominated cloud is named
+  too — the reason it was never named is that there are hundreds of it, which stops being true
+  inside a deep window. Slot pricing still applies, so a crowded window degrades to fewer names
+  rather than a carpet.
 - Made an unchecked front line demote its whole tier to context: the marks now take the dominated
   cloud's grey instead of keeping a medal colour with no front to explain it. Nothing leaves the
   plot — that stays the tier picker's job — but labels, searches and the legend all follow the

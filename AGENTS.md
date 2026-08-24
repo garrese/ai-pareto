@@ -166,9 +166,14 @@ keyboard path. Decisions that are load-bearing:
 - Capped at 32× per axis (`MAX_ZOOM` — past that the tick formatters run out of decimals), panned
   windows clamp to the padded full domain, and a window covering the whole field commits as null,
   so zooming out fully snaps to the exact original fit.
-- "The best front on show is named" reads the window as part of "on show": a window holding no
-  gold names silver, and so on. A window holding only dominated cloud still names nothing — that
-  is the standing never-name-the-cloud rule; widening it is a decision to take with the user.
+- Names spend the room the window buys (2026-08-24, second pass). Unzoomed, the old rule stands:
+  only the best front wearing its line is named. Zoomed, every front on show is named, best first —
+  and once the window is sparse enough that everything visible fits under `LABEL_LIMIT`, the
+  dominated cloud is named too. That last part is a user-approved exception to the
+  never-name-the-cloud rule: "there are hundreds of it" stops being true inside a deep window. "On
+  show" reads the window and the front-lines picker both, so a window with no gold names silver
+  and a demoted tier queues with the cloud. The placer still prices every slot, so a crowded
+  window degrades to fewer names rather than a carpet.
 
 On desktop it is `clamp(560px, 72vh, 960px)` tall, raised twice on 2026-08-15 from
 `clamp(420px, 58vh, 820px)`. The plot was letterboxed at nearly 3:1, which is where the vertical
