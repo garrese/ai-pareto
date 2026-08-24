@@ -14,6 +14,8 @@ because the evolution they integrate appears once under its work commit.
   everywhere else and the search box matches either form. A footnote appears under the plot only
   when a shortened name is actually on screen. Coverage improved with the width: 1280px names all
   17 gold models against 15 before, and a phone names 14 where it used to fit almost none.
+- Replaced latency with the release date on the chart's model card. Latency comes back whenever it
+  is the metric on an axis, so the card never omits the coordinate being pointed at.
 - Rewrote the page header: the title is now "The AI Pareto Frontier", the subtitle says what the
   site is for in one line instead of explaining the plotting rules, and the X bot is presented as a
   call to action rather than a footnote.

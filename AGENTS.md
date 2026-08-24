@@ -268,7 +268,11 @@ else gives them up.
 - The **filters fold away** behind a "Show filters" button below 720px and on short landscape
   screens, so a phone opens on data. The **chart/table switch stays outside the fold** — it is the
   one control that must always be one tap away.
-- The **card is the only place the untruncated name exists**, so it is width-capped and wraps.
+- The **card names the full model and its release date**. Latency is the one metric it leaves out —
+  it is the least asked-for of the five and the release date earns the row more — but it returns
+  whenever it is on an axis, because a card that omitted the coordinate under the pointer would be
+  answering a question nobody asked. The card is also the only place the untruncated name exists, so
+  it is width-capped and wraps.
 - **Table column order is deliberate**: tier, model, intelligence, cost/task first, creator last.
   Headings are abbreviated (`Intel`, `$/task`, `$/1M`, `Lat`) with the full term on an `<abbr>`
   title, because a spelled-out heading widens a column past anything its values ever hold.

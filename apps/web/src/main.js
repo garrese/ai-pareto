@@ -192,6 +192,33 @@ function renderLegend(fronts, restCount, dominatedCount, matchCount) {
   }
 }
 
+/**
+ * `2026-05-19` is a plain calendar date, not an instant, so it is formatted in
+ * UTC: parsed as local time it lands a day early for anyone west of Greenwich.
+ */
+const RELEASE_DATE = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+function formatReleaseDate(value) {
+  const parsed = Date.parse(value ?? '');
+  return Number.isFinite(parsed) ? RELEASE_DATE.format(parsed) : '—';
+}
+
+/**
+ * Latency is the one metric the card leaves out. It is the least asked-for of
+ * the five and the release date earns the row more, but it comes back the
+ * moment it is plotted: a card that omitted the coordinate the pointer is
+ * sitting on would be answering a question nobody asked.
+ */
+const cardMetrics = () =>
+  Object.values(METRICS).filter(
+    (metric) => metric.key !== 'ttft' || state.x === 'ttft' || state.y === 'ttft',
+  );
+
 function renderTooltip(model, tierIndex, event) {
   if (!model || !event) {
     dom.tooltip.hidden = true;
@@ -220,7 +247,7 @@ function renderTooltip(model, tierIndex, event) {
   }
 
   const list = document.createElement('dl');
-  for (const metric of Object.values(METRICS)) {
+  for (const metric of cardMetrics()) {
     const value = model[metric.key];
     const dt = document.createElement('dt');
     dt.textContent = metric.label;
@@ -228,6 +255,13 @@ function renderTooltip(model, tierIndex, event) {
     dd.textContent = Number.isFinite(value) ? metric.format(value) : '—';
     list.append(dt, dd);
   }
+
+  const released = document.createElement('dt');
+  released.textContent = 'Released';
+  const releasedValue = document.createElement('dd');
+  releasedValue.textContent = formatReleaseDate(model.releaseDate);
+  list.append(released, releasedValue);
+
   dom.tooltip.append(list);
 
   dom.tooltip.hidden = false;
