@@ -38,8 +38,9 @@ const COVER_RANKED_COST = 3;
 const COVER_CLOUD_COST = 1;
 /**
  * A matched mark is the answer to the query, so covering one costs more than
- * covering any other datum. The names kept on a searched plot are there to be
- * read past, never over the thing being searched for.
+ * covering any other datum: the names on a searched plot are there to be read
+ * past, never over the thing being searched for. A dimmed context name may not
+ * do it at all — see `drawLabels`.
  */
 const COVER_MATCH_COST = 6;
 /**
@@ -322,11 +323,24 @@ function drawLabels({ svg, targets, obstacles, segments, plot, compact }) {
 
         const leader = leaderFor(target, box);
         let cost = 0;
+        let blocked = false;
         for (const p of nearMarks) {
           if (!covers(grown, p)) continue;
-          if (p.match) cost += COVER_MATCH_COST;
-          else cost += p.ranked ? COVER_RANKED_COST : COVER_CLOUD_COST;
+          if (p.match) {
+            // A dimmed context name is optional and the match under it is not,
+            // so it gives up the slot instead of sitting on the answer to the
+            // query. On a phone-width plot that is a real choice: priced only,
+            // one of three matched marks ended up under a name.
+            if (target.dim) {
+              blocked = true;
+              break;
+            }
+            cost += COVER_MATCH_COST;
+          } else {
+            cost += p.ranked ? COVER_RANKED_COST : COVER_CLOUD_COST;
+          }
         }
+        if (blocked) continue;
         for (const line of nearLines) {
           if (segmentHitsBox(line, box)) cost += CROSS_FRONT_COST;
           else if (leader && segmentsCross(line, leader)) cost += CROSS_FRONT_LEADER_COST;
@@ -655,15 +669,13 @@ export function renderChart({
     // dimmed names fill in what is left — including nothing at all, on a plot
     // the matches have already filled.
     //
-    // A compact plot keeps naming only the matches. There, names are off by
-    // default and are on because a bot link asked for one, so there is no
-    // context to preserve — and a dozen names at phone width are the chart
-    // rather than an annotation of it.
-    const context = compact
-      ? []
-      : bestFrontTargets()
-          .filter((p) => !matches.has(p.model.id))
-          .map((p) => ({ ...p, dim: true }));
+    // The names checkbox is the only switch: a phone that has it on dims its
+    // names exactly as a desktop does. Screen width already decides whether the
+    // checkbox starts on, and making it decide twice would mean a reader who
+    // asked for names on a phone loses them the moment they type.
+    const context = bestFrontTargets()
+      .filter((p) => !matches.has(p.model.id))
+      .map((p) => ({ ...p, dim: true }));
     labelled = [...matched, ...context];
   } else if (showLabels) {
     labelled = bestFrontTargets();

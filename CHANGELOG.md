@@ -10,7 +10,8 @@ because the evolution they integrate appears once under its work commit.
 - Kept the model names already on the plot while a search runs. They now dim along with the marks
   and the front lines they annotate instead of disappearing, so a highlighted model is read against
   the named front it sits in. Matches are still named first and take the cleanest slots, a name may
-  no longer be laid over a matched mark, and a compact plot goes on naming only the matches.
+  no longer be laid over a matched mark. The names checkbox stays the only switch, so a phone that
+  has names on dims them exactly as a desktop does.
 - Shortened the names the chart draws. A model's parenthesised configuration is dropped when it is
   the only variant of its name, and replaced by a letter — `Claude Opus 5 (a)` … `(e)`, ordered by
   intelligence — when there are several, so the plot no longer has to fit strings like "Claude
