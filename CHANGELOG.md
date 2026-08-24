@@ -7,6 +7,9 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Gave the site the radar avatar as its favicon; the browser tab was the last unbranded surface.
+  The icons are the bot's radar dial downscaled to 32, 192 and 180 pixel PNGs served beside the
+  page, and the local server's MIME map learned the PNG type it never needed before.
 - Turned the chart's variant letters around: `(a)` is now the ablest member of its family instead of
   the least able. On the plot that makes `(a)` a fixed place to look for the best Claude Opus 5,
   where ascending order made the answer "whatever letter this family happens to end on" — something
