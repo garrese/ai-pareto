@@ -7,6 +7,8 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Made closing a round explicit in the agent guide: no round ends without committing the work,
+  merging it into `develop`, and pushing, so finished work is never left uncommitted and silent.
 - Turned the bot's pill into a plain link and put its explanatory line beside it, on one row. The
   pill read as a button that would do something on the page, when the one thing it does is leave it;
   weight and the only primary-text colour in the header still mark it as the call to action. The
