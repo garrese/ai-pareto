@@ -13,6 +13,12 @@ because the evolution they integrate appears once under its work commit.
   pill read as a button that would do something on the page, when the one thing it does is leave it;
   weight and the only primary-text colour in the header still mark it as the call to action. The
   line wraps under the link on a narrow screen rather than pushing the page sideways.
+
+- Fixed the chart's stacking order where tiers crowd together: silver and bronze marks and front
+  lines were painted over gold, because SVG stacks in document order and the fronts were drawn
+  best-first. Both passes now paint the worst front first, so the medal hierarchy reads the right
+  way up wherever points overlap.
+
 - Separated the bot from the source link in the header. The X link and the line explaining what the
   bot posts now stack as one block, so the note can no longer read as a caption for GitHub, which
   drops to a plain secondary link. The note also survives on a phone, where it used to be hidden:

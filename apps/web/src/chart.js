@@ -571,9 +571,12 @@ export function renderChart({
   // partly on whether a name would be laid across one of these.
   const frontSegments = [];
 
-  fronts.forEach((front, index) => {
-    if (!shows(index)) return;
-    const path = frontPath(front, xObjective, yObjective);
+  // Both passes paint the worst front first: SVG stacks in document order, so
+  // wherever the tiers crowd together gold has to land on top of silver and
+  // silver on top of bronze, or the medal ranking reads upside down.
+  for (let index = fronts.length - 1; index >= 0; index -= 1) {
+    if (!shows(index)) continue;
+    const path = frontPath(fronts[index], xObjective, yObjective);
     if (path.length > 1) {
       const points = path.map((p) => ({ x: x.map(p.x), y: y.map(p.y) }));
       const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
@@ -587,12 +590,12 @@ export function renderChart({
         });
       }
     }
-  });
+  }
 
-  fronts.forEach((front, index) => {
-    if (!shows(index)) return;
+  for (let index = fronts.length - 1; index >= 0; index -= 1) {
+    if (!shows(index)) continue;
     const group = el('g', { class: `mark-tier tier-${index}` });
-    for (const model of front) {
+    for (const model of fronts[index]) {
       group.append(
         el('circle', {
           cx: x.map(model[xMetric.key]),
@@ -603,7 +606,7 @@ export function renderChart({
       );
     }
     svg.append(group);
-  });
+  }
 
   const positions = plotted.map((model) => ({
     model,
