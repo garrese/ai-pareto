@@ -235,8 +235,11 @@ parenthesis and some are unusable on a plot — "Claude Fable 5 (Adaptive Reason
 4.8 Fallback)" is 66 characters, roughly a third of the plot's width. `names.js` adds a `shortName`
 to every model: models are grouped by everything before their first parenthesis, a family with one
 member simply loses its parenthesis, and a family with several has every member's parenthesis
-replaced by a letter — `Claude Opus 5 (a)` … `(e)` — assigned by **ascending intelligence**, with
-unmeasured models taking the last letters rather than the first. `name` itself is never replaced:
+replaced by a letter — `Claude Opus 5 (a)` … `(e)` — assigned by **descending intelligence, so
+`(a)` is the ablest variant of its family** (inverted 2026-08-24, at the user's request: `(a)` is a
+fixed place to look for the best of a family, where "the last letter" is a different letter in every
+family and only the picker can say which). Unmeasured models take the last letters rather than the
+first. `name` itself is never replaced:
 the card, the table and the pickers all keep showing the real thing, and the search box matches
 both, because a reader types back what the plot spelled out.
 
