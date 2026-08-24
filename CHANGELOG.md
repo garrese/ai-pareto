@@ -7,6 +7,10 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Rewrote the repository README as a portfolio landing page. The web app and the Radar bot are now
+  presented as one tandem, with live screenshots — the chart with its filter rail, the bot's X
+  profile and three real posts — and the radar avatar heading the page. The stale note about the
+  publisher waiting on production credentials is gone: the bot posts in production.
 - Gave the site the radar avatar as its favicon; the browser tab was the last unbranded surface.
   The icons are the bot's radar dial downscaled to 32, 192 and 180 pixel PNGs served beside the
   page, and the local server's MIME map learned the PNG type it never needed before.
