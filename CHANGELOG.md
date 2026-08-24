@@ -7,6 +7,10 @@ because the evolution they integrate appears once under its work commit.
 
 ## 2026-08-24
 
+- Turned the bot's pill into a plain link and put its explanatory line beside it, on one row. The
+  pill read as a button that would do something on the page, when the one thing it does is leave it;
+  weight and the only primary-text colour in the header still mark it as the call to action. The
+  line wraps under the link on a narrow screen rather than pushing the page sideways.
 - Separated the bot from the source link in the header. The X link and the line explaining what the
   bot posts now stack as one block, so the note can no longer read as a caption for GitHub, which
   drops to a plain secondary link. The note also survives on a phone, where it used to be hidden:
